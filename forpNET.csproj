@@ -38,7 +38,9 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="BeeOptLong.cs" />
+    <Compile Include="forp.cs" />
     <Compile Include="Log.cs" />
+    <Compile Include="MaxTasks.cs" />
     <Compile Include="Native.cs" />
     <Compile Include="Opts.cs" />
     <Compile Include="Program.cs" />

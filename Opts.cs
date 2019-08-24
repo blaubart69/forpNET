@@ -6,6 +6,8 @@ namespace forp
     class Opts
     {
         public string inputfilename;
+        public bool debug;
+
         private Opts()
         {
         }
@@ -17,8 +19,9 @@ namespace forp
 
             Opts tmpOpts = new Opts() { };
             var cmdOpts = new BeeOptsBuilder()
-                .Add('f', "file", OPTTYPE.VALUE, "input file", o => tmpOpts.inputfilename = o)
-                .Add('h', "help", OPTTYPE.BOOL, "show help", o => showhelp = true)
+                .Add('f', "file",  OPTTYPE.VALUE, "input file", o => tmpOpts.inputfilename = o)
+                .Add('d', "debug", OPTTYPE.BOOL, "verbose output", o => tmpOpts.debug = true)
+                .Add('h', "help",  OPTTYPE.BOOL, "show help", o => showhelp = true)
                 .GetOpts();
 
             var templateArgs = Spi.BeeOpts.Parse(args, cmdOpts, (string unknownOpt) => Console.Error.WriteLine($"unknow option [{unknownOpt}]"));

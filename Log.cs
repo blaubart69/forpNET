@@ -152,12 +152,12 @@ namespace Spi
             {
                 if (Logger == null)
                 {
-                    SetLogger(level: LEVEL.INFO);
+                    SetLevel(level: LEVEL.INFO);
                 }
             }
             return Logger;
         }
-        public static void SetLogger(LEVEL level)
+        public static void SetLevel(LEVEL level)
         {
             lock (InitLock)
             {
