@@ -43,6 +43,7 @@
     <Compile Include="MaxTasks.cs" />
     <Compile Include="Native.cs" />
     <Compile Include="Opts.cs" />
+    <Compile Include="ProcessRedirect.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>

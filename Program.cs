@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 using Spi;
@@ -36,11 +37,11 @@ namespace forp
             {
                 inputstream = new StreamReader(opts.inputfilename);
             }
-
+            CancellationTokenSource cts = new CancellationTokenSource();
             using (inputstream)
             {
                 IEnumerable<string[]> substitutes = ReadLines(inputstream).Select(l => Native.CommandLineToArgv(l));
-                forp.Run(CommandTemplate, substitutes);
+                forp.Run(CommandTemplate, substitutes, cts.Token);
             }
 
             return 0;

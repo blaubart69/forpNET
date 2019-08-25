@@ -1,7 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 using Spi;
@@ -10,26 +12,30 @@ namespace forp
 {
     class forp
     {
-        public static void Run(string commandTemplate, IEnumerable<string[]> substitutes)
+        public static void Run(string commandTemplate, IEnumerable<string[]> substitutes, CancellationToken cancel)
         {
+            TextWriter writer = TextWriter.Synchronized(new StreamWriter(".\forp.out.txt", append: false, encoding: Encoding.UTF8));
+
             new MaxTasks().Start(
                 tasks: substitutes
                         .Select(sub =>
                         {
                             string commandline = SubstitutePercent(commandTemplate, sub);
-                            return RunOneProcess(commandline);
+                            return RunOneProcess(commandline, writer, cancel);
                         }),
                 MaxParallel: 2)
             .Wait();
         }
-        static Task RunOneProcess(string commandline)
+        static Task RunOneProcess(string commandline, TextWriter writer, CancellationToken cancel)
         {
             return
-            Task.Run(() =>
-            {
-                Log log = Log.GetLogger();
-                log.dbgKeyVal("commandline to exec", commandline);
-            });
+                ProcessRedirect.Start(
+                    new System.Diagnostics.ProcessStartInfo(commandline),
+                    OnOutput: (kind, line) =>
+                    {
+                        writer.WriteLine(line);
+                    }, 
+                    cancel: cancel);
         }
         static string SubstitutePercent(string commandTemplate, string[] substitutes)
         {
