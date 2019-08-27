@@ -14,7 +14,7 @@ namespace forp
     {
         static int Main(string[] args)
         {
-            if ( ! Opts.ParseOpts(args, out Opts opts, out string CommandTemplate) )
+            if ( ! Opts.ParseOpts(args, out Opts opts, out List<string> commandTemplate) )
             {
                 return 1;
             }
@@ -25,7 +25,7 @@ namespace forp
             }
             Log log = Log.GetLogger();
 
-            log.dbgKeyVal("CommandTemplate", CommandTemplate);
+            log.dbgKeyVal("CommandTemplate", String.Join(" ", commandTemplate));
 
             TextReader inputstream;
             if (String.IsNullOrEmpty(opts.inputfilename))
@@ -41,7 +41,7 @@ namespace forp
             using (inputstream)
             {
                 IEnumerable<string[]> substitutes = ReadLines(inputstream).Select(l => Native.CommandLineToArgv(l));
-                forp.Run(CommandTemplate, substitutes, cts.Token);
+                forp.Run(commandTemplate, substitutes, opts.dryrun, cts.Token);
             }
 
             return 0;

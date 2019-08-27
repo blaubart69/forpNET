@@ -1,5 +1,6 @@
 ﻿using Spi;
 using System;
+using System.Collections.Generic;
 
 namespace forp
 {
@@ -7,12 +8,13 @@ namespace forp
     {
         public string inputfilename;
         public bool debug;
+        public bool dryrun;
 
         private Opts()
         {
         }
 
-        public static bool ParseOpts(string[] args, out Opts opts, out string CommandlineTemplate)
+        public static bool ParseOpts(string[] args, out Opts opts, out List<string> commandlineTemplate)
         {
             opts = null;
             bool showhelp = false;
@@ -20,12 +22,12 @@ namespace forp
             Opts tmpOpts = new Opts() { };
             var cmdOpts = new BeeOptsBuilder()
                 .Add('f', "file",  OPTTYPE.VALUE, "input file", o => tmpOpts.inputfilename = o)
-                .Add('d', "debug", OPTTYPE.BOOL, "verbose output", o => tmpOpts.debug = true)
+                .Add('d', "dryrun", OPTTYPE.BOOL, "dry run", o => tmpOpts.dryrun = true)
+                .Add('v', "verbose", OPTTYPE.BOOL, "verbose output", o => tmpOpts.debug = true)
                 .Add('h', "help",  OPTTYPE.BOOL, "show help", o => showhelp = true)
                 .GetOpts();
 
-            var templateArgs = Spi.BeeOpts.Parse(args, cmdOpts, (string unknownOpt) => Console.Error.WriteLine($"unknow option [{unknownOpt}]"));
-            CommandlineTemplate = String.Join(" ", templateArgs);
+            commandlineTemplate = Spi.BeeOpts.Parse(args, cmdOpts, (string unknownOpt) => Console.Error.WriteLine($"unknow option [{unknownOpt}]"));
 
             if (showhelp)
             {

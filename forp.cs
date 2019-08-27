@@ -10,42 +10,65 @@ using Spi;
 
 namespace forp
 {
-    class forp
+    static class forp
     {
-        public static void Run(string commandTemplate, IEnumerable<string[]> substitutes, CancellationToken cancel)
-        {
-            TextWriter writer = TextWriter.Synchronized(new StreamWriter(".\forp.out.txt", append: false, encoding: Encoding.UTF8));
+        static Log log = Log.GetLogger();
 
-            new MaxTasks().Start(
-                tasks: substitutes
-                        .Select(sub =>
-                        {
-                            string commandline = SubstitutePercent(commandTemplate, sub);
-                            return RunOneProcess(commandline, writer, cancel);
-                        }),
-                MaxParallel: 2)
-            .Wait();
-        }
-        static Task RunOneProcess(string commandline, TextWriter writer, CancellationToken cancel)
+        public static void Run(List<string> commandTemplate, IEnumerable<string[]> substitutes, bool dryrun, CancellationToken cancel)
         {
-            return
-                ProcessRedirect.Start(
-                    new System.Diagnostics.ProcessStartInfo(commandline),
-                    OnOutput: (kind, line) =>
-                    {
-                        writer.WriteLine(line);
-                    }, 
-                    cancel: cancel);
-        }
-        static string SubstitutePercent(string commandTemplate, string[] substitutes)
-        {
-            string result = commandTemplate;
-
-            for ( int i=0; i<substitutes.Length; ++i)
+            using (TextWriter writer = TextWriter.Synchronized(new StreamWriter(@".\forp.out.txt", append: false, encoding: Encoding.UTF8)))
             {
-                string toReplace = "%" + (i+1).ToString();
-                result = result.Replace(toReplace, substitutes[i]);
+                new MaxTasks().Start(
+                    tasks: substitutes
+                            .Select(sub =>
+                            {
+                                List<string> commandline = SubstitutePercent(commandTemplate, sub);
+                                return RunOneProcess(commandline, writer, dryrun, cancel);
+                            }),
+                    MaxParallel: 2)
+                .Wait();
             }
+        }
+        static Task RunOneProcess(List<string> commandline, TextWriter writer, bool dryrun, CancellationToken cancel)
+        {
+            log.dbg("starting: [{0}]", commandline);
+
+            string exe = commandline[0];
+            string args = String.Join(" ", commandline.Skip(1));
+
+            if (dryrun)
+            {
+                log.inf("[{0}] [{1}]", exe, args);
+                return Task.CompletedTask;
+            }
+            else
+            {
+                return
+                    ProcessRedirect.Start(
+                        new System.Diagnostics.ProcessStartInfo(exe, args),
+                        OnOutput: (kind, line) =>
+                        {
+                            writer.WriteLine(line);
+                        },
+                        cancel: cancel);
+            }
+        }
+        static List<string> SubstitutePercent(List<string> commandTemplate, string[] substitutes)
+        {
+            log.dbg("SubstitutePercent(): template [{0}], subs [{1}]", commandTemplate, String.Join(",", substitutes));
+
+            List<string> result = new List<string>(commandTemplate);
+
+            for (int i = 0; i < substitutes.Length; ++i)
+            {
+                for (int j = 0; j < result.Count; ++j)
+                {
+                    string toReplace = "%" + (i + 1).ToString();
+                    result[j] = result[j].Replace(toReplace, substitutes[i]);
+                }
+            }
+
+            log.dbg("SubstitutePercent(): result [{0}]", String.Join(" ",result));
 
             return result;
         }

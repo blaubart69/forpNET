@@ -11,6 +11,8 @@ namespace Spi
     }
     public class ProcessRedirect
     {
+        static Log log = Log.GetLogger();
+
         public delegate void OutputHandler(KINDOFOUTPUT output, string line);
 
         public static Task<int> Start(ProcessStartInfo pi, OutputHandler OnOutput, CancellationToken cancel)
