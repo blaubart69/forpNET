@@ -7,6 +7,7 @@ namespace forp
     class Opts
     {
         public string inputfilename;
+        public bool runCmdExe;
         public bool debug;
         public bool dryrun;
 
@@ -22,6 +23,7 @@ namespace forp
             Opts tmpOpts = new Opts() { };
             var cmdOpts = new BeeOptsBuilder()
                 .Add('f', "file",  OPTTYPE.VALUE, "input file", o => tmpOpts.inputfilename = o)
+                .Add('c', "cmd", OPTTYPE.BOOL, "execute with cmd.exe", o => tmpOpts.runCmdExe = true)
                 .Add('d', "dryrun", OPTTYPE.BOOL, "dry run", o => tmpOpts.dryrun = true)
                 .Add('v', "verbose", OPTTYPE.BOOL, "verbose output", o => tmpOpts.debug = true)
                 .Add('h', "help",  OPTTYPE.BOOL, "show help", o => showhelp = true)

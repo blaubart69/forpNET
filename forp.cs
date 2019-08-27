@@ -14,7 +14,7 @@ namespace forp
     {
         static Log log = Log.GetLogger();
 
-        public static void Run(List<string> commandTemplate, IEnumerable<string[]> substitutes, bool dryrun, CancellationToken cancel)
+        public static void Run(List<string> commandTemplate, IEnumerable<string[]> substitutes, Opts opts, CancellationToken cancel)
         {
             using (TextWriter writer = TextWriter.Synchronized(new StreamWriter(@".\forp.out.txt", append: false, encoding: Encoding.UTF8)))
             {
@@ -23,7 +23,7 @@ namespace forp
                             .Select(sub =>
                             {
                                 List<string> commandline = SubstitutePercent(commandTemplate, sub);
-                                return RunOneProcess(commandline, writer, dryrun, cancel);
+                                return RunOneProcess(commandline, writer, opts.dryrun, cancel);
                             }),
                     MaxParallel: 2)
                 .Wait();
@@ -31,8 +31,6 @@ namespace forp
         }
         static Task RunOneProcess(List<string> commandline, TextWriter writer, bool dryrun, CancellationToken cancel)
         {
-            log.dbg("starting: [{0}]", commandline);
-
             string exe = commandline[0];
             string args = String.Join(" ", commandline.Skip(1));
 
@@ -43,6 +41,8 @@ namespace forp
             }
             else
             {
+                log.dbg("starting: [{0}] [{1}]", exe, args);
+
                 return
                     ProcessRedirect.Start(
                         new System.Diagnostics.ProcessStartInfo(exe, args),
@@ -55,7 +55,7 @@ namespace forp
         }
         static List<string> SubstitutePercent(List<string> commandTemplate, string[] substitutes)
         {
-            log.dbg("SubstitutePercent(): template [{0}], subs [{1}]", commandTemplate, String.Join(",", substitutes));
+            //log.dbg("SubstitutePercent(): template [{0}], subs [{1}]", commandTemplate, String.Join(",", substitutes));
 
             List<string> result = new List<string>(commandTemplate);
 

@@ -25,6 +25,10 @@ namespace forp
             }
             Log log = Log.GetLogger();
 
+            if (opts.runCmdExe)
+            {
+                commandTemplate.InsertRange(0, new string[] { Environment.GetEnvironmentVariable("ComSpec"), "/c" });
+            }
             log.dbgKeyVal("CommandTemplate", String.Join(" ", commandTemplate));
 
             TextReader inputstream;
@@ -41,7 +45,7 @@ namespace forp
             using (inputstream)
             {
                 IEnumerable<string[]> substitutes = ReadLines(inputstream).Select(l => Native.CommandLineToArgv(l));
-                forp.Run(commandTemplate, substitutes, opts.dryrun, cts.Token);
+                forp.Run(commandTemplate, substitutes, opts, cts.Token);
             }
 
             return 0;
