@@ -4,9 +4,9 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading;
-using System.Threading.Tasks;
 
 using Spi;
+using static forp.forp;
 
 namespace forp
 {
@@ -41,14 +41,47 @@ namespace forp
             {
                 inputstream = new StreamReader(opts.inputfilename);
             }
-            using (CancellationTokenSource cts = new CancellationTokenSource())
+            
             using (inputstream)
             {
-                IEnumerable<string[]> substitutes = ReadLines(inputstream).Select(l => Native.CommandLineToArgv(l));
-                forp.Run(commandTemplate, substitutes, opts, cts.Token);
+                var commandlines2Exce =
+                    ReadLines(inputstream)
+                    .Select(l => Native.CommandLineToArgv(l))
+                    .Select(substitutes => SubstitutePercent(commandTemplate, substitutes)) 
+                    .Select(tokens => new ProcToExec() { Exe = tokens[0], Args = String.Join(" ", tokens.Skip(1)) });
+
+                if (opts.dryrun)
+                {
+                    foreach (var p in commandlines2Exce)
+                    {
+                        log.inf("[{0}] [{1}]", p.Exe, p.Args);
+                    }
+                }
+                else
+                {
+                    using (CancellationTokenSource cts = new CancellationTokenSource())
+                    {
+                        forp.Run(commandlines2Exce, opts.maxParallel, cts.Token);
+                    }
+                }
             }
 
             return 0;
+        }
+        static List<string> SubstitutePercent(List<string> commandTemplate, string[] substitutes)
+        {
+            List<string> result = new List<string>(commandTemplate);
+
+            for (int i = 0; i < substitutes.Length; ++i)
+            {
+                for (int j = 0; j < result.Count; ++j)
+                {
+                    string toReplace = "%" + (i + 1).ToString();
+                    result[j] = result[j].Replace(toReplace, substitutes[i]);
+                }
+            }
+
+            return result;
         }
         static IEnumerable<string> ReadLines(TextReader reader)
         {

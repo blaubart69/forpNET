@@ -13,36 +13,29 @@ namespace forp
     static class forp
     {
         static Log log = Log.GetLogger();
-
-        public static void Run(List<string> commandTemplate, IEnumerable<string[]> substitutes, Opts opts, CancellationToken cancel)
+        public struct ProcToExec
+        {
+            public string Exe;
+            public string Args;
+        }
+        public static void Run(IEnumerable<ProcToExec> commandline, int maxParallel, CancellationToken cancel)
         {
             using (TextWriter writer         = TextWriter.Synchronized(new StreamWriter(@".\forp.out.txt",      append: false, encoding: Encoding.UTF8)))
             using (TextWriter exitcodeWriter = TextWriter.Synchronized(new StreamWriter(@".\forp.ExitCode.txt", append: false, encoding: Encoding.UTF8)))
             {
+                log.dbg($"starting with maxParallel: {maxParallel}");
                 var procs = new MaxTasks();
                 var procsTask = procs.Start(
-                    tasks: substitutes
-                            .Select(sub =>
+                    tasks: commandline.Select(cl =>
                             {
-                                List<string> commandline = SubstitutePercent(commandTemplate, sub);
-                                string exe = commandline[0];
-                                string args = String.Join(" ", commandline.Skip(1));
-                                if (opts.dryrun)
-                                {
-                                    log.inf("[{0}] [{1}]", exe, args);
-                                    return Task.CompletedTask;
-                                }
-                                else
-                                {
-                                    return
-                                        RunOneProcess(exe, args, writer, cancel)
-                                        .ContinueWith((rc) =>
-                                        {
-                                            exitcodeWriter.WriteLine($"{rc.Result}\t{exe} {args}");
-                                        });
-                                }
+                                return
+                                    RunOneProcess(cl.Exe, cl.Args, writer, cancel)
+                                    .ContinueWith((rc) =>
+                                    {
+                                        exitcodeWriter.WriteLine($"{rc.Result}\t{cl.Exe} {cl.Args}");
+                                    });
                             }),
-                    MaxParallel: opts.maxParallel);
+                    MaxParallel: maxParallel);
 
                 var status = new StatusLineWriter();
                 DoUntilTaskFinished(procsTask, 2000, () =>
@@ -64,28 +57,9 @@ namespace forp
                     },
                     cancel: cancel);
         }
-        static List<string> SubstitutePercent(List<string> commandTemplate, string[] substitutes)
-        {
-            //log.dbg("SubstitutePercent(): template [{0}], subs [{1}]", commandTemplate, String.Join(",", substitutes));
-
-            List<string> result = new List<string>(commandTemplate);
-
-            for (int i = 0; i < substitutes.Length; ++i)
-            {
-                for (int j = 0; j < result.Count; ++j)
-                {
-                    string toReplace = "%" + (i + 1).ToString();
-                    result[j] = result[j].Replace(toReplace, substitutes[i]);
-                }
-            }
-
-            log.dbg("SubstitutePercent(): result [{0}]", String.Join(" ",result));
-
-            return result;
-        }
         static void DoUntilTaskFinished(Task task, int milliSeconds, Action doEvery)
         {
-            while ( ! task.Wait(millisecondsTimeout: milliSeconds) )
+            while (!task.Wait(millisecondsTimeout: milliSeconds))
             {
                 doEvery.Invoke();
             }
