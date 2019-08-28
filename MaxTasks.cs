@@ -15,6 +15,11 @@ namespace Spi
         long _counter;
         long _error;
         long _done;
+
+        public long Running { get => _counter; }
+        public long Error { get => _error; }
+        public long Done { get => _done; }
+
         /// <summary>
         /// the idea is the following:
         /// 

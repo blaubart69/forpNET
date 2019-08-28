@@ -19,7 +19,8 @@ namespace forp
             using (TextWriter writer         = TextWriter.Synchronized(new StreamWriter(@".\forp.out.txt",      append: false, encoding: Encoding.UTF8)))
             using (TextWriter exitcodeWriter = TextWriter.Synchronized(new StreamWriter(@".\forp.ExitCode.txt", append: false, encoding: Encoding.UTF8)))
             {
-                new MaxTasks().Start(
+                var procs = new MaxTasks();
+                var procsTask = procs.Start(
                     tasks: substitutes
                             .Select(sub =>
                             {
@@ -41,8 +42,12 @@ namespace forp
                                         });
                                 }
                             }),
-                    MaxParallel: 2)
-                .Wait();
+                    MaxParallel: 2);
+                var status = new StatusLineWriter();
+                DoUntilTaskFinished(procsTask, 2000, () =>
+                {
+                    status.Write($"running/done/error\t{procs.Running}/{procs.Done}/{procs.Error}");
+                });
             }
         }
         static Task<int> RunOneProcess(string exe, string args, TextWriter writer, CancellationToken cancel)
@@ -76,6 +81,14 @@ namespace forp
             log.dbg("SubstitutePercent(): result [{0}]", String.Join(" ",result));
 
             return result;
+        }
+        static void DoUntilTaskFinished(Task task, int milliSeconds, Action doEvery)
+        {
+            while ( ! task.Wait(millisecondsTimeout: milliSeconds) )
+            {
+                doEvery.Invoke();
+            }
+            doEvery.Invoke();
         }
     }
 }
