@@ -42,7 +42,8 @@ namespace forp
                                         });
                                 }
                             }),
-                    MaxParallel: 2);
+                    MaxParallel: opts.maxParallel);
+
                 var status = new StatusLineWriter();
                 DoUntilTaskFinished(procsTask, 2000, () =>
                 {
