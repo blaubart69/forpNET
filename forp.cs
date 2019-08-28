@@ -44,7 +44,7 @@ namespace forp
             log.dbg("starting: [{0}] [{1}]", exe, args);
 
             return
-                ProcessRedirect.Start(
+                ProcessRedirect.StartAsync(
                     new System.Diagnostics.ProcessStartInfo(exe, args),
                     OnOutput: (kind, line) =>
                     {
