@@ -16,7 +16,8 @@ namespace forp
 
         public static void Run(List<string> commandTemplate, IEnumerable<string[]> substitutes, Opts opts, CancellationToken cancel)
         {
-            using (TextWriter writer = TextWriter.Synchronized(new StreamWriter(@".\forp.out.txt", append: false, encoding: Encoding.UTF8)))
+            using (TextWriter writer         = TextWriter.Synchronized(new StreamWriter(@".\forp.out.txt",      append: false, encoding: Encoding.UTF8)))
+            using (TextWriter exitcodeWriter = TextWriter.Synchronized(new StreamWriter(@".\forp.ExitCode.txt", append: false, encoding: Encoding.UTF8)))
             {
                 new MaxTasks().Start(
                     tasks: substitutes
@@ -32,14 +33,19 @@ namespace forp
                                 }
                                 else
                                 {
-                                    return RunOneProcess(exe, args, writer, cancel);
+                                    return
+                                        RunOneProcess(exe, args, writer, cancel)
+                                        .ContinueWith((rc) =>
+                                        {
+                                            exitcodeWriter.WriteLine($"{rc.Result}\t{exe} {args}");
+                                        });
                                 }
                             }),
                     MaxParallel: 2)
                 .Wait();
             }
         }
-        static Task RunOneProcess(string exe, string args, TextWriter writer, CancellationToken cancel)
+        static Task<int> RunOneProcess(string exe, string args, TextWriter writer, CancellationToken cancel)
         {
             log.dbg("starting: [{0}] [{1}]", exe, args);
 
