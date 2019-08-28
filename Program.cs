@@ -41,7 +41,7 @@ namespace forp
             {
                 inputstream = new StreamReader(opts.inputfilename);
             }
-            CancellationTokenSource cts = new CancellationTokenSource();
+            using (CancellationTokenSource cts = new CancellationTokenSource())
             using (inputstream)
             {
                 IEnumerable<string[]> substitutes = ReadLines(inputstream).Select(l => Native.CommandLineToArgv(l));

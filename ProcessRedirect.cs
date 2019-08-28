@@ -94,10 +94,9 @@ namespace Spi
                     .WhenAll(
                         ReadLinesAsync(_proc.StandardOutput, (line) => OnOutput(KINDOFOUTPUT.STDOUT, line)),
                         ReadLinesAsync(_proc.StandardError,  (line) => OnOutput(KINDOFOUTPUT.STDERR, line)))
-                    .ConfigureAwait(false); ;
+                    .ConfigureAwait(false);
 
-                int RetCode = _proc.ExitCode;
-                return RetCode;
+                return _proc.ExitCode;
             }
             finally
             {
