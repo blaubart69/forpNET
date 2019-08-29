@@ -1,4 +1,5 @@
 ﻿using System;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Threading;
@@ -67,40 +68,41 @@ namespace Spi
         {
             Log logger = Log.GetLogger();
 
-            Process _proc = new Process()
+            using (Process _proc = new Process() { StartInfo = pi, EnableRaisingEvents = false })
             {
-                StartInfo = pi,
-                EnableRaisingEvents = false
-            };
-            _proc.StartInfo.UseShellExecute = false;
-            _proc.StartInfo.RedirectStandardOutput = true;
-            _proc.StartInfo.RedirectStandardError = true;
-
-            /*
-            Return Value
-            Type: System.Boolean
-            true if a process resource is started; 
-            false if no new process resource is started (for example, if an existing process is reused).
-            */
-            try
-            {
-                bool started = _proc.Start();
-                if (started == false)
+                _proc.StartInfo.UseShellExecute = false;
+                _proc.StartInfo.RedirectStandardOutput = true;
+                _proc.StartInfo.RedirectStandardError = true;
+                try
                 {
-                    logger.dbg("_proc.Start() returned false. no new process resource is started (for example, if an existing process is reused)");
+                    _proc.Start();
+                }
+                catch (Win32Exception wex)
+                {
+                    log.win32err(wex, "Process.Start()");
                 }
 
-                await Task
-                    .WhenAll(
-                        ReadLinesAsync(_proc.StandardOutput, (line) => OnOutput(KINDOFOUTPUT.STDOUT, line)),
-                        ReadLinesAsync(_proc.StandardError,  (line) => OnOutput(KINDOFOUTPUT.STDERR, line)))
-                    .ConfigureAwait(false);
+                using (cancel.Register(() =>
+                {
+                    try
+                    {
+                        _proc.Kill();
+                        logger.dbg("killed procid {0}", _proc.Id);
+                    }
+                    catch (Win32Exception wex)
+                    {
+                        log.win32err(wex, "Process.Kill()");
+                    }
+                }))
+                {
+                    await Task
+                        .WhenAll(
+                            ReadLinesAsync(_proc.StandardOutput, (line) => OnOutput(KINDOFOUTPUT.STDOUT, line)),
+                            ReadLinesAsync(_proc.StandardError,  (line) => OnOutput(KINDOFOUTPUT.STDERR, line)))
+                        .ConfigureAwait(false);
+                }
 
                 return _proc.ExitCode;
-            }
-            finally
-            {
-                _proc.Dispose();
             }
         }
         static async Task ReadLinesAsync(TextReader input, Action<string> onLine)

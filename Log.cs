@@ -1,4 +1,5 @@
 ﻿using System;
+using System.ComponentModel;
 using System.IO;
 
 namespace Spi
@@ -39,6 +40,10 @@ namespace Spi
         public void inf(string format, params object[] args) { write(LEVEL.INFO, 'I', format, args); }
         public void wrn(string format, params object[] args) { write(LEVEL.WARNING, 'W', format, args); }
         public void err(string format, params object[] args) { write(LEVEL.ERROR, 'E', format, args); }
+        public void win32err(Win32Exception wex, string context)
+        {
+            err($"Win32Exeption: native rc: {wex.NativeErrorCode}, HResult: {wex.HResult}, {wex.Message}");
+        }
         public void log(LEVEL level, string format, params object[] args)
         {
             char prefix;
