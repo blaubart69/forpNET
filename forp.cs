@@ -38,7 +38,8 @@ namespace forp
                                         exitcodeWriter.WriteLine($"{rc.Result}\t{cl.Exe} {cl.Args}");
                                     });
                             }),
-                    MaxParallel: maxParallel);
+                    MaxParallel: maxParallel,
+                    cancel: cts.Token);
 
                 var status = new StatusLineWriter();
                 DoUntilTaskFinished(procsTask, TimeSpan.FromSeconds(2), () =>

@@ -9,7 +9,7 @@ namespace Spi
 {
     public class MaxTasks
     {
-        //ManualResetEvent _finished;
+        CancellationToken _cancel;
         IEnumerator<Task> _taskEnum;
         Task _finished;
 
@@ -84,8 +84,9 @@ namespace Spi
             }
         }
         */
-        public Task Start(IEnumerable<Task> tasks, int MaxParallel)
+        public Task Start(IEnumerable<Task> tasks, int MaxParallel, CancellationToken cancel)
         {
+            _cancel = cancel;
             _taskEnum = tasks.GetEnumerator();
             _finished = new Task(() =>
             {
@@ -130,6 +131,11 @@ namespace Spi
 
         private bool StartNextTask()
         {
+            if (_cancel.IsCancellationRequested)
+            {
+                return false;
+            }
+
             lock (_taskEnum)
             {
                 if (_taskEnum.MoveNext())
