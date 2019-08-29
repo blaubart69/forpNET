@@ -12,7 +12,7 @@ namespace Spi
         STDOUT,
         STDERR
     }
-    public class ProcessRedirect
+    public static class ProcessRedirect
     {
         static Log log = Log.GetLogger();
 
