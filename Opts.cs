@@ -1,6 +1,7 @@
 ﻿using Spi;
 using System;
 using System.Collections.Generic;
+using System.IO;
 
 namespace forp
 {
@@ -23,15 +24,24 @@ namespace forp
 
             Opts tmpOpts = new Opts() { };
             var cmdOpts = new BeeOptsBuilder()
-                .Add('f', "file",  OPTTYPE.VALUE, "input file", o => tmpOpts.inputfilename = o)
+                .Add('f', "file", OPTTYPE.VALUE, "input file", o => tmpOpts.inputfilename = o)
                 .Add('c', "cmd", OPTTYPE.BOOL, "execute with cmd.exe", o => tmpOpts.runCmdExe = true)
                 .Add('p', "parallel", OPTTYPE.VALUE, "run max parallel processes", o => tmpOpts.maxParallel = Convert.ToInt32(o))
                 .Add('d', "dryrun", OPTTYPE.BOOL, "dry run", o => tmpOpts.dryrun = true)
                 .Add('v', "verbose", OPTTYPE.BOOL, "verbose output", o => tmpOpts.debug = true)
-                .Add('h', "help",  OPTTYPE.BOOL, "show help", o => showhelp = true)
+                .Add('h', "help", OPTTYPE.BOOL, "show help", o => showhelp = true)
                 .GetOpts();
 
             commandlineTemplate = Spi.BeeOpts.Parse(args, cmdOpts, (string unknownOpt) => Console.Error.WriteLine($"unknow option [{unknownOpt}]"));
+
+            if (!String.IsNullOrEmpty(tmpOpts.inputfilename))
+            {
+                if (!File.Exists(tmpOpts.inputfilename))
+                {
+                    Console.Error.WriteLine($"cannot find inputfile given [{tmpOpts.inputfilename}]");
+                    return false;
+                }
+            }
 
             if (showhelp)
             {
