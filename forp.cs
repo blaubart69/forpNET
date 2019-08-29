@@ -18,12 +18,15 @@ namespace forp
             public string Exe;
             public string Args;
         }
-        public static void Run(IEnumerable<ProcToExec> commandline, int maxParallel, CancellationToken cancel)
+        public static void Run(IEnumerable<ProcToExec> commandline, int maxParallel)
         {
+            using (CancellationTokenSource cts = new CancellationTokenSource())
             using (TextWriter writer         = TextWriter.Synchronized(new StreamWriter(@".\forp.out.txt",      append: false, encoding: Encoding.UTF8)))
             using (TextWriter exitcodeWriter = TextWriter.Synchronized(new StreamWriter(@".\forp.ExitCode.txt", append: false, encoding: Encoding.UTF8)))
             {
                 log.dbg($"starting with maxParallel: {maxParallel}");
+                var cancel = cts.Token;
+                Task.Run(() => HandleQuitPressed(cts));
                 var procs = new MaxTasks();
                 var procsTask = procs.Start(
                     tasks: commandline.Select(cl =>
@@ -38,7 +41,7 @@ namespace forp
                     MaxParallel: maxParallel);
 
                 var status = new StatusLineWriter();
-                DoUntilTaskFinished(procsTask, 2000, () =>
+                DoUntilTaskFinished(procsTask, TimeSpan.FromSeconds(2), () =>
                 {
                     status.Write($"running/done/error\t{procs.Running}/{procs.Done}/{procs.Error}");
                 });
@@ -57,13 +60,32 @@ namespace forp
                     },
                     cancel: cancel);
         }
-        static void DoUntilTaskFinished(Task task, int milliSeconds, Action doEvery)
+        static void DoUntilTaskFinished(Task task, TimeSpan timeout, Action doEvery)
         {
-            while (!task.Wait(millisecondsTimeout: milliSeconds))
+            while (!task.Wait(timeout))
             {
                 doEvery.Invoke();
             }
             doEvery.Invoke();
+        }
+        static async void HandleQuitPressed(CancellationTokenSource cancelSource)
+        {
+            char[] buffer = new char[1];
+            while (!cancelSource.IsCancellationRequested)
+            {
+                int read = await Console.In.ReadAsync(buffer, 0, 1);
+                if ( read == 0 )
+                {
+                    break;
+                }
+                else if (read == 1)
+                {
+                    switch (buffer[0])
+                    {
+                        case 'q': cancelSource.Cancel(); break;
+                    }
+                }
+            }
         }
     }
 }
