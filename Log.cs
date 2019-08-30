@@ -62,25 +62,31 @@ namespace Spi
         {
             string exLines =
 
-              BuildLine('X', "***** exception ****************************************************************")
-            + BuildLine('X', "MESSAGE: [{0}]", ex.Message)
-            + BuildLine('X', "TYPE:    [{0}]", ex.GetType().ToString())
-            + BuildLine('X', "STACKTRACE:\n{0}", ex.StackTrace);
+              BuildLine('X', ">>> exception")
+            + '\n' + BuildLine('X', "MESSAGE: [{0}]", ex.Message)
+            + '\n' + BuildLine('X', "TYPE:    [{0}]", ex.GetType().ToString())
+            + '\n' + BuildLine('X', "STACKTRACE:\n{0}", ex.StackTrace);
 
             if (ex.InnerException != null && ex.InnerException.Message != null)
             {
                 exLines +=
-                  BuildLine('X', "***** inner exception ****************************************************************")
-                + BuildLine('X', "MESSAGE: [{0}]", ex.InnerException.Message)
-                + BuildLine('X', "TYPE:    [{0}]", ex.InnerException.GetType().ToString())
-                + BuildLine('X', "STACKTRACE:\n{0}", ex.InnerException.StackTrace)
-                + BuildLine('X', "***** inner exception ****************************************************************");
+                  '\n' + BuildLine('X', "\t>>> inner exception ")
+                + '\n' + BuildLine('X', "\tMESSAGE: [{0}]", ex.InnerException.Message)
+                + '\n' + BuildLine('X', "\tTYPE:    [{0}]", ex.InnerException.GetType().ToString())
+                + '\n' + BuildLine('X', "\tSTACKTRACE:\n{0}", ex.InnerException.StackTrace)
+                + '\n' + BuildLine('X', "\t<<< inner exception ");
             }
             exLines +=
-            BuildLine('X', "***** exception ****************************************************************");
+            '\n' + BuildLine('X', "<<< exception");
 
             WriteConsoleColored(LEVEL.ERROR, exLines);
         }
+        public void aggroException(AggregateException ex)
+        {
+            var newex = ex.Flatten();
+            exception(newex);
+        }
+
         private void write(LEVEL level, char prefix, string format, params object[] args)
         {
             if (level > this._currentLevel)

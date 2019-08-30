@@ -119,6 +119,7 @@ namespace Spi
             if (workingTask.Exception != null)
             {
                 Interlocked.Increment(ref _error);
+                Log.GetLogger().aggroException(workingTask.Exception);
             }
 
             StartNextTask();

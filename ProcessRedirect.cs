@@ -56,6 +56,12 @@ namespace Spi
                         .ConfigureAwait(false);
                 }
 
+                if (!_proc.HasExited)
+                {
+                    log.dbg("_proc has not exited yet. waiting...");
+                    _proc.WaitForExit();
+                }
+
                 return _proc.ExitCode;
             }
         }
@@ -66,6 +72,7 @@ namespace Spi
             {
                 onLine(line);
             }
+            log.dbg("ReadLinesAsync ended");
         }
         /*
 public static Task<int> Start(ProcessStartInfo pi, OutputHandler OnOutput, CancellationToken cancel)

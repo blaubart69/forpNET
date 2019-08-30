@@ -52,14 +52,16 @@ namespace forp
         {
             log.dbg("starting: [{0}] [{1}]", exe, args);
 
-            return
-                ProcessRedirect.StartAsync(
-                    new System.Diagnostics.ProcessStartInfo(exe, args),
-                    OnOutput: (kind, line) =>
-                    {
-                        writer.WriteLine(line);
-                    },
-                    cancel: cancel);
+            var rc = ProcessRedirect.StartAsync(
+                new System.Diagnostics.ProcessStartInfo(exe, args),
+                OnOutput: (kind, line) =>
+                {
+                    writer.WriteLine(line);
+                },
+                cancel: cancel);
+
+            log.dbg("proc ended with rc={0}",rc);
+            return rc;
         }
         static void DoUntilTaskFinished(Task task, TimeSpan timeout, Action doEvery)
         {
