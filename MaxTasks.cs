@@ -9,8 +9,9 @@ namespace Spi
 {
     public class MaxTasks
     {
-        ManualResetEvent _finished;
+        CancellationToken _cancel;
         IEnumerator<Task> _taskEnum;
+        Task _finished;
 
         long _counter;
         long _error;
@@ -59,6 +60,8 @@ namespace Spi
         /// </summary>
         /// <param name="tasks"></param>
         /// <param name="MaxParallel"></param>
+        /// 
+        /*
         public void Run(IEnumerable<Task> tasks, int MaxParallel)
         {
             using (_taskEnum = tasks.GetEnumerator())
@@ -80,37 +83,35 @@ namespace Spi
                 }
             }
         }
-        public Task Start(IEnumerable<Task> tasks, int MaxParallel)
+        */
+        public Task Start(IEnumerable<Task> tasks, int MaxParallel, CancellationToken cancel)
         {
+            _cancel = cancel;
             _taskEnum = tasks.GetEnumerator();
-            _finished = new ManualResetEvent(false);
+            _finished = new Task(() =>
+            {
+                _taskEnum.Dispose();
+            });
 
             {
-                _counter = 1; // !!!!! Mike's way :-)
-
-                for (int i = 0; i < MaxParallel; ++i)
+                _counter = 1; // !!!!! Mike's way :-)           //  ---+
+                                                                //     |
+                for (int i = 0; i < MaxParallel; ++i)           //     |
+                {                                               //     |
+                    if (StartNextTask() == false)               //     |
+                    {                                           //     |
+                        break;                                  //     |
+                    }                                           //     |
+                }                                               //     |
+                                                                //     |
+                if (Interlocked.Decrement(ref _counter) == 0)   //  <--+
                 {
-                    if (StartNextTask() == false)
-                    {
-                        break;
-                    }
+                    _finished.Start();
                 }
 
-                return
-                    Task.Run(() =>
-                    {
-                       if (Interlocked.Decrement(ref _counter) != 0)
-                       {
-                           _finished.WaitOne();
-                       }
-
-                        _taskEnum.Dispose();
-                        _finished.Dispose();
-                    });
+                return _finished;
             }
         }
-
-
         private void PostWork(Task workingTask)
         {
             Interlocked.Increment(ref _done);
@@ -124,12 +125,17 @@ namespace Spi
 
             if (Interlocked.Decrement(ref _counter) == 0)
             {
-                _finished.Set();
+                _finished.Start();
             }
         }
 
         private bool StartNextTask()
         {
+            if (_cancel.IsCancellationRequested)
+            {
+                return false;
+            }
+
             lock (_taskEnum)
             {
                 if (_taskEnum.MoveNext())

@@ -59,10 +59,7 @@ namespace forp
                 }
                 else
                 {
-                    using (CancellationTokenSource cts = new CancellationTokenSource())
-                    {
-                        forp.Run(commandlines2Exce, opts.maxParallel, cts.Token);
-                    }
+                    forp.Run(commandlines2Exce, opts.maxParallel);
                 }
             }
 
