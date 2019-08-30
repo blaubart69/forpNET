@@ -60,7 +60,10 @@ namespace forp
                 },
                 cancel: cancel);
 
-            log.dbg("proc ended with rc={0}",rc);
+            if (rc.IsCompleted)
+            {
+                log.dbg("proc ended with rc={0}", rc);
+            }
             return rc;
         }
         static void DoUntilTaskFinished(Task task, TimeSpan timeout, Action doEvery)
@@ -71,22 +74,15 @@ namespace forp
             }
             doEvery.Invoke();
         }
-        static async void HandleQuitPressed(CancellationTokenSource cancelSource)
+        static void HandleQuitPressed(CancellationTokenSource cancelSource)
         {
             char[] buffer = new char[1];
             while (!cancelSource.IsCancellationRequested)
             {
-                int read = await Console.In.ReadAsync(buffer, 0, 1);
-                if ( read == 0 )
+                var key = Console.ReadKey(intercept: true);
+                switch (key.KeyChar)
                 {
-                    break;
-                }
-                else if (read == 1)
-                {
-                    switch (buffer[0])
-                    {
-                        case 'q': cancelSource.Cancel(); break;
-                    }
+                    case 'q': cancelSource.Cancel(); break;
                 }
             }
         }

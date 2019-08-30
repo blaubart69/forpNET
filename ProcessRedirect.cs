@@ -72,7 +72,6 @@ namespace Spi
             {
                 onLine(line);
             }
-            log.dbg("ReadLinesAsync ended");
         }
         /*
 public static Task<int> Start(ProcessStartInfo pi, OutputHandler OnOutput, CancellationToken cancel)

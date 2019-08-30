@@ -25,7 +25,9 @@ namespace forp
             }
             Log log = Log.GetLogger();
 
-            if (opts.runCmdExe)
+            if (opts.runCmdExe 
+                || commandTemplate[0].EndsWith(".bat", StringComparison.OrdinalIgnoreCase) 
+                || commandTemplate[0].EndsWith(".cmd", StringComparison.OrdinalIgnoreCase))
             {
                 commandTemplate.InsertRange(0, new string[] { Environment.GetEnvironmentVariable("ComSpec"), "/c" });
             }
