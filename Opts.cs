@@ -10,6 +10,7 @@ namespace forp
         public string inputfilename;
         public bool runCmdExe;
         public int maxParallel = 16;
+        public bool firstOnly;
         public bool debug;
         public bool dryrun;
 
@@ -27,6 +28,7 @@ namespace forp
                 .Add('f', "file", OPTTYPE.VALUE, "input file", o => tmpOpts.inputfilename = o)
                 .Add('c', "cmd", OPTTYPE.BOOL, "execute with cmd.exe", o => tmpOpts.runCmdExe = true)
                 .Add('p', "parallel", OPTTYPE.VALUE, $"run max parallel processes (default: {tmpOpts.maxParallel})", o => tmpOpts.maxParallel = Convert.ToInt32(o))
+                .Add('1', "first", OPTTYPE.BOOL, "run only for first line in inputfile", o => tmpOpts.firstOnly = true )
                 .Add('d', "dryrun", OPTTYPE.BOOL, "dry run", o => tmpOpts.dryrun = true)
                 .Add('v', "verbose", OPTTYPE.BOOL, "verbose output", o => tmpOpts.debug = true)
                 .Add('h', "help", OPTTYPE.BOOL, "show help", o => showhelp = true)

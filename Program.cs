@@ -50,6 +50,11 @@ namespace forp
                     .Select(substitutes => SubstitutePercent(commandTemplate, substitutes)) 
                     .Select(tokens => new ProcToExec() { Exe = tokens[0], Args = String.Join(" ", tokens.Skip(1)) });
 
+                if ( opts.firstOnly )
+                {
+                    commandlines2Exce = commandlines2Exce.Take(1);
+                }
+
                 if (opts.dryrun)
                 {
                     foreach (var p in commandlines2Exce)
