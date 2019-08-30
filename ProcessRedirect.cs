@@ -29,10 +29,11 @@ namespace Spi
                 try
                 {
                     _proc.Start();
+                    _proc.PriorityClass = ProcessPriorityClass.Idle;
                 }
                 catch (Win32Exception wex)
                 {
-                    log.win32err(wex, "Process.Start()");
+                    log.win32err(wex, "Process.Start()/PriorityClass");
                     return -1;
                 }
 
