@@ -82,11 +82,9 @@ namespace forp
         {
             currProcess.Refresh();
 
-            string threadcount = currProcess == null ? "n/a" : currProcess.Threads.Count.ToString();
-            string privMem = currProcess == null ? "n/a" : Native.StrFormatByteSize(currProcess.PrivateMemorySize64);
             statusLine.Write($"running/done/error\t{processes.Running}/{processes.Done}/{processes.Error}"
-                + $"\tthreads: {threadcount}"
-                + $"\tprivMem: {privMem}");
+                + $"\tthreads: {currProcess.Threads.Count}"
+                + $"\tprivMem: {currProcess.PrivateMemorySize64}");
         }
     }
 }
