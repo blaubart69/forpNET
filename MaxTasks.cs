@@ -14,11 +14,10 @@ namespace Spi
         Task _finished;
 
         long _counter;
-        long _error;
+        long _exceptions;
         long _done;
 
         public long Running { get => _counter; }
-        public long Error { get => _error; }
         public long Done { get => _done; }
 
         /// <summary>
@@ -95,7 +94,7 @@ namespace Spi
 
             if (workingTask.Exception != null)
             {
-                Interlocked.Increment(ref _error);
+                Interlocked.Increment(ref _exceptions);
                 Log.GetLogger().aggroException(workingTask.Exception);
             }
 

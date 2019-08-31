@@ -30,7 +30,8 @@ namespace forp
                 Task.Run(() => HandleKeys(cts, writer));
                 var procs = new MaxTasks();
                 var procsTask = procs.Start(
-                    tasks: commandline.Select(async (cl) =>
+                    tasks: commandline.Select(
+                        async (cl) =>
                             {
                                 int rc = await RunOneProcess(cl.Exe, cl.Args, writer, cancel).ConfigureAwait(false);
                                 exitcodeWriter.WriteLine($"{rc}\t{cl.Exe} {cl.Args}");
@@ -68,6 +69,7 @@ namespace forp
         }
         static void HandleKeys(CancellationTokenSource cancelSource, TextWriter outWriter)
         {
+            Console.Error.WriteLine("press 'q' to quit. 'f' to flush output file");
             while (!cancelSource.IsCancellationRequested)
             {
                 var key = Console.ReadKey(intercept: true);
@@ -82,9 +84,9 @@ namespace forp
         {
             currProcess.Refresh();
 
-            statusLine.Write($"running/done/error\t{processes.Running}/{processes.Done}/{processes.Error}"
+            statusLine.Write($"running/done\t{processes.Running}/{processes.Done}"
                 + $"\tthreads: {currProcess.Threads.Count}"
-                + $"\tprivMem: {currProcess.PrivateMemorySize64}");
+                + $"\tprivMem: {Native.StrFormatByteSize(currProcess.PrivateMemorySize64)}");
         }
     }
 }
