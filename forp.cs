@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -36,15 +37,24 @@ namespace forp
                                     .ContinueWith((rc) =>
                                     {
                                         exitcodeWriter.WriteLine($"{rc.Result}\t{cl.Exe} {cl.Args}");
-                                    });
+                                    }, scheduler: TaskScheduler.Default);
                             }),
                     MaxParallel: maxParallel,
                     cancel: cts.Token);
 
                 var status = new StatusLineWriter();
-                DoUntilTaskFinished(procsTask, TimeSpan.FromSeconds(2), () =>
+                DoUntilTaskFinished(procsTask, TimeSpan.FromSeconds(1), () =>
                 {
-                    status.Write($"running/done/error\t{procs.Running}/{procs.Done}/{procs.Error}");
+                    Process currProc = null;
+                    try
+                    {
+                        currProc = System.Diagnostics.Process.GetCurrentProcess();
+                    }
+                    catch { }
+
+                    string threadcount  = currProc == null ? "n/a" : currProc.Threads.Count.ToString();
+                    status.Write($"running/done/error\t{procs.Running}/{procs.Done}/{procs.Error}"
+                        + $"\tthreads: {threadcount}");
                 });
             }
         }
@@ -76,7 +86,6 @@ namespace forp
         }
         static void HandleQuitPressed(CancellationTokenSource cancelSource)
         {
-            char[] buffer = new char[1];
             while (!cancelSource.IsCancellationRequested)
             {
                 var key = Console.ReadKey(intercept: true);

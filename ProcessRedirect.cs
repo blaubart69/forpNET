@@ -37,18 +37,7 @@ namespace Spi
                     return -1;
                 }
 
-                using (cancel.Register(() =>
-                {
-                    try
-                    {
-                        _proc.Kill();
-                        logger.dbg("killed procid {0}", _proc.Id);
-                    }
-                    catch (Win32Exception wex)
-                    {
-                        log.win32err(wex, "Process.Kill()");
-                    }
-                }))
+                using (cancel.Register(KillProcess, _proc, useSynchronizationContext: false))
                 {
                     await Task
                         .WhenAll(
@@ -62,8 +51,23 @@ namespace Spi
                     log.dbg("_proc has not exited yet. waiting...");
                     _proc.WaitForExit();
                 }
-
                 return _proc.ExitCode;
+            }
+        }
+        static void KillProcess(object processContext)
+        {
+            try
+            {
+                Process proc = processContext as Process;
+                if (proc != null)
+                {
+                    proc.Kill();
+                    Log.GetLogger().dbg("killed procid {0}", proc.Id);
+                }
+            }
+            catch (Win32Exception wex)
+            {
+                log.win32err(wex, "Process.Kill()");
             }
         }
         static async Task ReadLinesAsync(TextReader input, Action<string> onLine)

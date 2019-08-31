@@ -106,7 +106,7 @@ namespace Spi
                                                                 //     |
                 if (Interlocked.Decrement(ref _counter) == 0)   //  <--+
                 {
-                    _finished.Start();
+                    _finished.Start(TaskScheduler.Default);
                 }
 
                 return _finished;
@@ -144,7 +144,7 @@ namespace Spi
                     Interlocked.Increment(ref _counter);
                     _taskEnum
                         .Current
-                        .ContinueWith(PostWork)
+                        .ContinueWith(PostWork, TaskScheduler.Default)
                         .ConfigureAwait(false);
 
                     return true;
