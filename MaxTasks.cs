@@ -61,29 +61,6 @@ namespace Spi
         /// <param name="tasks"></param>
         /// <param name="MaxParallel"></param>
         /// 
-        /*
-        public void Run(IEnumerable<Task> tasks, int MaxParallel)
-        {
-            using (_taskEnum = tasks.GetEnumerator())
-            using (_finished = new ManualResetEvent(false))
-            {
-                _counter = 1; // !!!!! Mike's way :-)               //  ---+
-                                                                    //     |
-                for (int i = 0; i < MaxParallel; ++i)               //     |
-                {                                                   //     |
-                    if (StartNextTask() == false)                   //     |
-                    {                                               //     |
-                        break;                                      //     |
-                    }                                               //     |
-                }                                                   //     |
-                                                                    //     |
-                if (Interlocked.Decrement(ref _counter) != 0)       //  <--+
-                {
-                    _finished.WaitOne();
-                }
-            }
-        }
-        */
         public Task Start(IEnumerable<Task> tasks, int MaxParallel, CancellationToken cancel)
         {
             _cancel = cancel;
