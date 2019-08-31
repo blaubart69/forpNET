@@ -27,42 +27,27 @@ namespace forp
             {
                 log.dbg($"starting with maxParallel: {maxParallel}");
                 var cancel = cts.Token;
-                Task.Run(() => HandleQuitPressed(cts));
+                Task.Run(() => HandleKeys(cts, writer));
                 var procs = new MaxTasks();
                 var procsTask = procs.Start(
-                    tasks: commandline.Select(cl =>
+                    tasks: commandline.Select(async (cl) =>
                             {
-                                return
-                                    RunOneProcess(cl.Exe, cl.Args, writer, cancel)
-                                    .ContinueWith((rc) =>
-                                    {
-                                        exitcodeWriter.WriteLine($"{rc.Result}\t{cl.Exe} {cl.Args}");
-                                    }, scheduler: TaskScheduler.Default);
+                                int rc = await RunOneProcess(cl.Exe, cl.Args, writer, cancel).ConfigureAwait(false);
+                                exitcodeWriter.WriteLine($"{rc}\t{cl.Exe} {cl.Args}");
                             }),
                     MaxParallel: maxParallel,
                     cancel: cts.Token);
 
                 var status = new StatusLineWriter();
-                DoUntilTaskFinished(procsTask, TimeSpan.FromSeconds(1), () =>
-                {
-                    Process currProc = null;
-                    try
-                    {
-                        currProc = System.Diagnostics.Process.GetCurrentProcess();
-                    }
-                    catch { }
-
-                    string threadcount  = currProc == null ? "n/a" : currProc.Threads.Count.ToString();
-                    status.Write($"running/done/error\t{procs.Running}/{procs.Done}/{procs.Error}"
-                        + $"\tthreads: {threadcount}");
-                });
+                var currProcess = Process.GetCurrentProcess();
+                DoUntilTaskFinished(procsTask, TimeSpan.FromSeconds(1), () => WriteStatusLine(status, procs, currProcess));
             }
         }
-        static Task<int> RunOneProcess(string exe, string args, TextWriter writer, CancellationToken cancel)
+        static async Task<int> RunOneProcess(string exe, string args, TextWriter writer, CancellationToken cancel)
         {
             log.dbg("starting: [{0}] [{1}]", exe, args);
 
-            var rc = ProcessRedirect.StartAsync(
+            int rc = await ProcessRedirect.StartAsync(
                 new System.Diagnostics.ProcessStartInfo(exe, args),
                 OnOutput: (kind, line) =>
                 {
@@ -70,10 +55,7 @@ namespace forp
                 },
                 cancel: cancel);
 
-            if (rc.IsCompleted)
-            {
-                log.dbg("proc ended with rc={0}", rc);
-            }
+            log.dbg("proc ended with rc={0}", rc);
             return rc;
         }
         static void DoUntilTaskFinished(Task task, TimeSpan timeout, Action doEvery)
@@ -84,7 +66,7 @@ namespace forp
             }
             doEvery.Invoke();
         }
-        static void HandleQuitPressed(CancellationTokenSource cancelSource)
+        static void HandleKeys(CancellationTokenSource cancelSource, TextWriter outWriter)
         {
             while (!cancelSource.IsCancellationRequested)
             {
@@ -92,8 +74,19 @@ namespace forp
                 switch (key.KeyChar)
                 {
                     case 'q': cancelSource.Cancel(); break;
+                    case 'f': outWriter.Flush(); break;
                 }
             }
+        }
+        static void WriteStatusLine(StatusLineWriter statusLine, MaxTasks processes, Process currProcess)
+        {
+            currProcess.Refresh();
+
+            string threadcount = currProcess == null ? "n/a" : currProcess.Threads.Count.ToString();
+            string privMem = currProcess == null ? "n/a" : Native.StrFormatByteSize(currProcess.PrivateMemorySize64);
+            statusLine.Write($"running/done/error\t{processes.Running}/{processes.Done}/{processes.Error}"
+                + $"\tthreads: {threadcount}"
+                + $"\tprivMem: {privMem}");
         }
     }
 }
