@@ -29,7 +29,7 @@ namespace forp
                 .Add('c', "cmd", OPTTYPE.BOOL, "execute with cmd.exe", o => tmpOpts.runCmdExe = true)
                 .Add('p', "parallel", OPTTYPE.VALUE, $"run max parallel processes (default: {tmpOpts.maxParallel})", o => tmpOpts.maxParallel = Convert.ToInt32(o))
                 .Add('1', "first", OPTTYPE.BOOL, "run only for first line in inputfile", o => tmpOpts.firstOnly = true )
-                .Add('d', "dryrun", OPTTYPE.BOOL, "dry run", o => tmpOpts.dryrun = true)
+                .Add('n', "dryrun", OPTTYPE.BOOL, "dry run", o => tmpOpts.dryrun = true)
                 .Add('v', "verbose", OPTTYPE.BOOL, "verbose output", o => tmpOpts.debug = true)
                 .Add('h', "help", OPTTYPE.BOOL, "show help", o => showhelp = true)
                 .GetOpts();
