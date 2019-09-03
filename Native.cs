@@ -41,14 +41,14 @@ namespace Spi
         [ThreadStatic]
         static StringBuilder StrFormatByteSizeBuilder;
         const int StrFormatByteSizeBufferLen = 64;
-        public static string StrFormatByteSize(ulong Filesize)
+        public static string StrFormatByteSize(long Filesize)
         {
             if ( StrFormatByteSizeBuilder == null)
             {
                 StrFormatByteSizeBuilder = new StringBuilder(StrFormatByteSizeBufferLen);
             }
 
-            StrFormatByteSize((long)Filesize, StrFormatByteSizeBuilder, StrFormatByteSizeBufferLen);
+            StrFormatByteSize(Filesize, StrFormatByteSizeBuilder, StrFormatByteSizeBufferLen);
             return StrFormatByteSizeBuilder.ToString();
         }
     }

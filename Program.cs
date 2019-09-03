@@ -25,7 +25,9 @@ namespace forp
             }
             Log log = Log.GetLogger();
 
-            if (opts.runCmdExe)
+            if (opts.runCmdExe 
+                || commandTemplate[0].EndsWith(".bat", StringComparison.OrdinalIgnoreCase) 
+                || commandTemplate[0].EndsWith(".cmd", StringComparison.OrdinalIgnoreCase))
             {
                 commandTemplate.InsertRange(0, new string[] { Environment.GetEnvironmentVariable("ComSpec"), "/c" });
             }
@@ -49,6 +51,11 @@ namespace forp
                     .Select(l => Native.CommandLineToArgv(l))
                     .Select(substitutes => SubstitutePercent(commandTemplate, substitutes)) 
                     .Select(tokens => new ProcToExec() { Exe = tokens[0], Args = String.Join(" ", tokens.Skip(1)) });
+
+                if ( opts.firstOnly )
+                {
+                    commandlines2Exce = commandlines2Exce.Take(1);
+                }
 
                 if (opts.dryrun)
                 {

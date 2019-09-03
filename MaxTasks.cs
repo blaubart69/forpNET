@@ -14,11 +14,10 @@ namespace Spi
         Task _finished;
 
         long _counter;
-        long _error;
+        long _exceptions;
         long _done;
 
         public long Running { get => _counter; }
-        public long Error { get => _error; }
         public long Done { get => _done; }
 
         /// <summary>
@@ -61,29 +60,6 @@ namespace Spi
         /// <param name="tasks"></param>
         /// <param name="MaxParallel"></param>
         /// 
-        /*
-        public void Run(IEnumerable<Task> tasks, int MaxParallel)
-        {
-            using (_taskEnum = tasks.GetEnumerator())
-            using (_finished = new ManualResetEvent(false))
-            {
-                _counter = 1; // !!!!! Mike's way :-)               //  ---+
-                                                                    //     |
-                for (int i = 0; i < MaxParallel; ++i)               //     |
-                {                                                   //     |
-                    if (StartNextTask() == false)                   //     |
-                    {                                               //     |
-                        break;                                      //     |
-                    }                                               //     |
-                }                                                   //     |
-                                                                    //     |
-                if (Interlocked.Decrement(ref _counter) != 0)       //  <--+
-                {
-                    _finished.WaitOne();
-                }
-            }
-        }
-        */
         public Task Start(IEnumerable<Task> tasks, int MaxParallel, CancellationToken cancel)
         {
             _cancel = cancel;
@@ -106,7 +82,7 @@ namespace Spi
                                                                 //     |
                 if (Interlocked.Decrement(ref _counter) == 0)   //  <--+
                 {
-                    _finished.Start();
+                    _finished.Start(TaskScheduler.Default);
                 }
 
                 return _finished;
@@ -118,7 +94,8 @@ namespace Spi
 
             if (workingTask.Exception != null)
             {
-                Interlocked.Increment(ref _error);
+                Interlocked.Increment(ref _exceptions);
+                Log.GetLogger().aggroException(workingTask.Exception);
             }
 
             StartNextTask();
@@ -143,7 +120,7 @@ namespace Spi
                     Interlocked.Increment(ref _counter);
                     _taskEnum
                         .Current
-                        .ContinueWith(PostWork)
+                        .ContinueWith(PostWork, TaskScheduler.Default)
                         .ConfigureAwait(false);
 
                     return true;
