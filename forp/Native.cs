@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Microsoft.Win32.SafeHandles;
+using System;
 using System.Runtime.InteropServices;
 using System.Text;
 
@@ -33,23 +34,23 @@ namespace Spi
             }
         }
         [DllImport("Shlwapi.dll", CharSet = CharSet.Auto)]
-        private static extern long StrFormatByteSize(
+        public static extern long StrFormatByteSize(
                 long fileSize
                 , [MarshalAs(UnmanagedType.LPTStr)] StringBuilder buffer
                 , int bufferSize);
-
-        [ThreadStatic]
-        static StringBuilder StrFormatByteSizeBuilder;
-        const int StrFormatByteSizeBufferLen = 64;
-        public static string StrFormatByteSize(long Filesize)
+        //
+        // --- CreateProcess
+        //
+        /*
+        [StructLayout(LayoutKind.Sequential)]
+        public struct SECURITY_ATTRIBUTES
         {
-            if ( StrFormatByteSizeBuilder == null)
-            {
-                StrFormatByteSizeBuilder = new StringBuilder(StrFormatByteSizeBufferLen);
-            }
-
-            StrFormatByteSize(Filesize, StrFormatByteSizeBuilder, StrFormatByteSizeBufferLen);
-            return StrFormatByteSizeBuilder.ToString();
+            public int nLength;
+            public unsafe byte* lpSecurityDescriptor;
+            public int bInheritHandle;
         }
+        */
+
+        
     }
 }

@@ -86,7 +86,7 @@ namespace forp
 
             statusLine.Write($"running/done\t{processes.Running}/{processes.Done}"
                 + $"\tthreads: {currProcess.Threads.Count}"
-                + $"\tprivMem: {Native.StrFormatByteSize(currProcess.PrivateMemorySize64)}");
+                + $"\tprivMem: {Misc.StrFormatByteSize(currProcess.PrivateMemorySize64)}");
         }
     }
 }
