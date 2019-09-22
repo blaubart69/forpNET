@@ -18,6 +18,8 @@ namespace Spi
 {
     public class ProcessRedirectAsync
     {
+        static Log log = Log.GetLogger();
+
         private static long g_PipeSerialNumber = -1;
         private static int  g_currProcId = 0;
 
@@ -36,9 +38,11 @@ namespace Spi
             {
                 CreatePipeAsyncReadSyncWrite(out NamedPipeServerStream reader, out NamedPipeClientStream writer);
                 using (reader)
+                using (writer)
                 {
                     const int STARTF_USESTDHANDLES = 0x00000100;
                     const int STD_INPUT_HANDLE = -10;
+                    const uint IDLE_PRIORITY_CLASS = 0x00000040;
 
                     var si = new STARTUPINFO();
                     si.cb = (uint)Marshal.SizeOf<STARTUPINFO>();
@@ -53,18 +57,25 @@ namespace Spi
                         lpProcessAttributes:    IntPtr.Zero,
                         lpThreadAttributes:     IntPtr.Zero,
                         bInheritHandles:        true,
-                        dwCreationFlags:        0,
+                        dwCreationFlags:        IDLE_PRIORITY_CLASS,
                         lpEnvironment:          IntPtr.Zero,
                         lpCurrentDirectory:     null,
                         lpStartupInfo:          ref si,
                         lpProcessInformation:   out pi))
                     {
                         var wex = new Win32Exception();
-                        Console.Error.WriteLine($"could not start process. lastErr={wex.NativeErrorCode}");
-                        
+                        log.err($"CreateProcessW() lastErr={wex.NativeErrorCode}");
                         throw wex;
                     }
-
+                    if (!pi.hThread.Equals(IntPtr.Zero))
+                    {
+                        CloseHandle(pi.hThread);
+                    }
+                    //
+                    // 2019-09-22 Spindi himself
+                    //  this Close() is very importante.
+                    //  When we do not close the writer handle here, the read from out/err will hang.
+                    //
                     writer.Close();
 
                     Task stdout = Misc.ReadLinesAsync(new StreamReader(reader), (line) => onProcessOutput(KINDOFOUTPUT.STDOUT, line));
@@ -79,44 +90,11 @@ namespace Spi
             }
             finally
             {
-                if ( !pi.hThread.Equals(IntPtr.Zero))
-                {
-                    CloseHandle(pi.hThread);
-                }
                 if (!pi.hProcess.Equals(IntPtr.Zero))
                 {
                     CloseHandle(pi.hProcess);
                 }
             }
-        }
-        [Flags]
-        public enum PipeModeFlags : uint
-        {
-            //One of the following type modes can be specified. The same type mode must be specified for each instance of the pipe.
-            PIPE_TYPE_BYTE = 0x00000000,
-            PIPE_TYPE_MESSAGE = 0x00000004,
-            //One of the following read modes can be specified. Different instances of the same pipe can specify different read modes
-            PIPE_READMODE_BYTE = 0x00000000,
-            PIPE_READMODE_MESSAGE = 0x00000002,
-            //One of the following wait modes can be specified. Different instances of the same pipe can specify different wait modes.
-            PIPE_WAIT = 0x00000000,
-            PIPE_NOWAIT = 0x00000001,
-            //One of the following remote-client modes can be specified. Different instances of the same pipe can specify different remote-client modes.
-            PIPE_ACCEPT_REMOTE_CLIENTS = 0x00000000,
-            PIPE_REJECT_REMOTE_CLIENTS = 0x00000008
-        }
-        [Flags]
-        public enum PipeOpenModeFlags : uint
-        {
-            PIPE_ACCESS_DUPLEX = 0x00000003,
-            PIPE_ACCESS_INBOUND = 0x00000001,
-            PIPE_ACCESS_OUTBOUND = 0x00000002,
-            FILE_FLAG_FIRST_PIPE_INSTANCE = 0x00080000,
-            FILE_FLAG_WRITE_THROUGH = 0x80000000,
-            FILE_FLAG_OVERLAPPED = 0x40000000,
-            WRITE_DAC = 0x00040000,
-            WRITE_OWNER = 0x00080000,
-            ACCESS_SYSTEM_SECURITY = 0x01000000
         }
         private static void CreatePipeAsyncReadSyncWrite(
             out NamedPipeServerStream ReadPipe,
@@ -126,9 +104,9 @@ namespace Spi
             string pipename = $"forpNet.{g_currProcId}.{Interlocked.Increment(ref g_PipeSerialNumber)}";
 
             int nSize = 4096;
-            ReadPipe = new System.IO.Pipes.NamedPipeServerStream(
+            ReadPipe = new NamedPipeServerStream(
                 pipename,
-                System.IO.Pipes.PipeDirection.In,
+                PipeDirection.In,
                 maxNumberOfServerInstances: 1,
                 PipeTransmissionMode.Byte,
                 PipeOptions.Asynchronous,
@@ -138,19 +116,20 @@ namespace Spi
                 inheritability: HandleInheritability.Inheritable);
             
             WritePipe = new NamedPipeClientStream(
-                serverName: ".", // The name of the remote computer to connect to, or "." to specify the local computer.
-                pipeName: pipename,
-                direction: PipeDirection.Out,
-                options: PipeOptions.None,
+                serverName:         ".", // The name of the remote computer to connect to, or "." to specify the local computer.
+                pipeName:           pipename,
+                direction:          PipeDirection.Out,
+                options:            PipeOptions.None,
                 impersonationLevel: System.Security.Principal.TokenImpersonationLevel.None,
-                inheritability: HandleInheritability.Inheritable);
+                inheritability:     HandleInheritability.Inheritable);
 
-            WritePipe.Connect();
-            ReadPipe.WaitForConnection();
+            WritePipe.Connect();            // basically a CreateFile() to the pipename
+            ReadPipe.WaitForConnection();   // otherwise we get: "Pipe hasn't been connected yet."
         }
         #region DLLIMPORT
         [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
-        static extern bool CreateProcessW(string lpApplicationName,
+        static extern bool CreateProcessW(
+            string lpApplicationName,
             StringBuilder lpCommandLine,
             IntPtr lpProcessAttributes,
             IntPtr lpThreadAttributes,
@@ -161,29 +140,19 @@ namespace Spi
             [In] ref STARTUPINFO lpStartupInfo,
             out PROCESS_INFORMATION lpProcessInformation);
 
-        /*
-        [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
-        static extern SafeFileHandle CreateNamedPipe(string lpName, uint dwOpenMode,
-           uint dwPipeMode, uint nMaxInstances, uint nOutBufferSize, uint nInBufferSize,
-           uint nDefaultTimeOut, SECURITY_ATTRIBUTES lpSecurityAttributes);
-           */
-
         [DllImport("kernel32.dll", SetLastError = true)]
-        [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
         [SuppressUnmanagedCodeSecurity]
         [return: MarshalAs(UnmanagedType.Bool)]
         static extern bool CloseHandle(IntPtr hObject);
 
         [DllImport("kernel32.dll", SetLastError = true)]
-        public static extern IntPtr GetStdHandle(int whichHandle);
-
+        static extern IntPtr GetStdHandle(int whichHandle);
         #endregion
     }
 
     [StructLayout(LayoutKind.Sequential)]
-    public struct PROCESS_INFORMATION
+    struct PROCESS_INFORMATION
     {
-
         public IntPtr hProcess;
         public IntPtr hThread;
         public uint dwProcessId;
@@ -191,7 +160,7 @@ namespace Spi
     }
 
     [StructLayout(LayoutKind.Sequential)]
-    public struct STARTUPINFO
+    struct STARTUPINFO
     {
         public uint cb;
         public string lpReserved;

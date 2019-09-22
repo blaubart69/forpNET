@@ -31,26 +31,5 @@ namespace forp
                 onLine(line);
             }
         }
-        public static async Task ReadLinesFromServerPipe(NamedPipeServerStream input, Action<string> onLine)
-        {
-            try
-            {
-                await input.WaitForConnectionAsync().ConfigureAwait(false);
-
-                using (TextReader reader = new StreamReader(input))
-                {
-                    string line;
-                    while ((line = await reader.ReadLineAsync().ConfigureAwait(false)) != null)
-                    {
-                        onLine(line);
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                Console.Error.WriteLine(ex.Message);
-            }
-        }
-
     }
 }
