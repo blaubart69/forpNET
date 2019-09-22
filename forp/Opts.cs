@@ -36,6 +36,21 @@ namespace forp
 
             commandlineTemplate = Spi.BeeOpts.Parse(args, cmdOpts, (string unknownOpt) => Console.Error.WriteLine($"unknow option [{unknownOpt}]"));
 
+            if (showhelp)
+            {
+                Console.WriteLine(
+                      "forpNET.exe {executable to start in parallel with different arguments coming from stdin/file}"
+                    + "\nyou can use %1, %2... to reference your input tokens\n");
+                Spi.BeeOpts.PrintOptions(cmdOpts);
+                return false;
+            }
+
+            if ( commandlineTemplate.Count == 0 )
+            {
+                Console.Error.WriteLine("no command given");
+                return false;
+            }
+
             if (!String.IsNullOrEmpty(tmpOpts.inputfilename))
             {
                 if (!File.Exists(tmpOpts.inputfilename))
@@ -43,16 +58,6 @@ namespace forp
                     Console.Error.WriteLine($"cannot find inputfile given [{tmpOpts.inputfilename}]");
                     return false;
                 }
-            }
-
-            if (showhelp)
-            {
-                Spi.BeeOpts.PrintOptions(cmdOpts);
-                Console.WriteLine(
-                        "\nSample:"
-                    + "forpNET.exe {executable with %1...}"
-                    );
-                return false;
             }
 
             opts = tmpOpts;
