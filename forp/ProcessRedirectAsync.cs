@@ -34,38 +34,42 @@ namespace Spi
             var pi = new PROCESS_INFORMATION();
             try
             {
-                CreatePipeAsyncReadSyncWrite(out StreamReader reader, out PipeStream writer);
+                CreatePipeAsyncReadSyncWrite(out NamedPipeServerStream reader, out NamedPipeClientStream writer);
                 using (reader)
                 using (writer)
                 {
-                    var si = new STARTUPINFO(stdout: writer.SafePipeHandle, stderr: writer.SafePipeHandle);
-                    
-                    var procAttr = new IntPtr();
-                    var threadAttr = new IntPtr();
-                    if (!CreateProcess(
-                        lpApplicationName: null,
-                        lpCommandLine: commandline,
-                        lpProcessAttributes: ref procAttr,
-                        lpThreadAttributes: ref threadAttr,
-                        bInheritHandles: true,
-                        dwCreationFlags: 0,
-                        lpEnvironment: IntPtr.Zero,
-                        lpCurrentDirectory: null,
-                        lpStartupInfo: ref si,
-                        lpProcessInformation: out pi))
+                    const int STARTF_USESTDHANDLES = 0x00000100;
+                    const int STD_INPUT_HANDLE = -10;
+
+                    var si = new STARTUPINFO();
+                    si.cb = (uint)Marshal.SizeOf<STARTUPINFO>();
+                    si.dwFlags = STARTF_USESTDHANDLES;
+                    si.hStdOutput = writer.SafePipeHandle.DangerousGetHandle();
+                    si.hStdError  = writer.SafePipeHandle.DangerousGetHandle();
+                    si.hStdInput = GetStdHandle(STD_INPUT_HANDLE);
+
+                    if (!CreateProcessW(
+                        lpApplicationName:      null,
+                        lpCommandLine:          new StringBuilder(commandline),
+                        lpProcessAttributes:    IntPtr.Zero,
+                        lpThreadAttributes:     IntPtr.Zero,
+                        bInheritHandles:        true,
+                        dwCreationFlags:        0,
+                        lpEnvironment:          IntPtr.Zero,
+                        lpCurrentDirectory:     null,
+                        lpStartupInfo:          ref si,
+                        lpProcessInformation:   out pi))
                     {
                         var wex = new Win32Exception();
+                        Console.Error.WriteLine($"could not start process. lastErr={wex.NativeErrorCode}");
+                        
                         throw wex;
                     }
 
-                    /*
-                    await Task
-                            .WhenAll(
-                                Misc.ReadLinesAsync(reader, (line) => onProcessOutput(KINDOFOUTPUT.STDOUT, line)),
-                                Misc.ReadLinesAsync(reader, (line) => onProcessOutput(KINDOFOUTPUT.STDERR, line)))
-                            .ConfigureAwait(false);
-                            */
-                    await Misc.ReadLinesAsync(reader, (line) => onProcessOutput(KINDOFOUTPUT.STDOUT, line)).ConfigureAwait(false);
+                    Task stdout = Misc.ReadLinesAsync(new StreamReader(reader), (line) => onProcessOutput(KINDOFOUTPUT.STDOUT, line));
+                    Task stderr = Misc.ReadLinesAsync(new StreamReader(reader), (line) => onProcessOutput(KINDOFOUTPUT.STDERR, line));
+
+                    await Task.WhenAll(stdout, stderr);
                 }
             }
             catch (Exception ex)
@@ -114,17 +118,14 @@ namespace Spi
             ACCESS_SYSTEM_SECURITY = 0x01000000
         }
         private static void CreatePipeAsyncReadSyncWrite(
-            out StreamReader lpReadPipe,
-            out PipeStream lpWritePipe)
+            out NamedPipeServerStream ReadPipe,
+            out NamedPipeClientStream WritePipe)
         {
-            lpReadPipe = null;
-            lpWritePipe = null;
-
             //string pipename = $"\\\\.\\Pipe\\forpNet.{g_currProcId}.{Interlocked.Increment(ref g_PipeSerialNumber)}";
             string pipename = $"forpNet.{g_currProcId}.{Interlocked.Increment(ref g_PipeSerialNumber)}";
 
             int nSize = 4096;
-            var pipeRead = new System.IO.Pipes.NamedPipeServerStream(
+            ReadPipe = new System.IO.Pipes.NamedPipeServerStream(
                 pipename,
                 System.IO.Pipes.PipeDirection.In,
                 maxNumberOfServerInstances: 1,
@@ -135,7 +136,7 @@ namespace Spi
                 pipeSecurity: null,
                 inheritability: HandleInheritability.Inheritable);
             
-            var pipeWrite = new NamedPipeClientStream(
+            WritePipe = new NamedPipeClientStream(
                 serverName: ".", // The name of the remote computer to connect to, or "." to specify the local computer.
                 pipeName: pipename,
                 direction: PipeDirection.Out,
@@ -143,106 +144,71 @@ namespace Spi
                 impersonationLevel: System.Security.Principal.TokenImpersonationLevel.None,
                 inheritability: HandleInheritability.Inheritable);
 
-            pipeWrite.Connect();
-
-            lpReadPipe  = new StreamReader(pipeRead);
-            lpWritePipe = pipeWrite;
+            WritePipe.Connect();
+            ReadPipe.WaitForConnection();
         }
         #region DLLIMPORT
         [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
-        static extern bool CreateProcess(
-           string lpApplicationName,
-           string lpCommandLine,
-           //ref SECURITY_ATTRIBUTES lpProcessAttributes,
-           //ref SECURITY_ATTRIBUTES lpThreadAttributes,
-           ref IntPtr lpProcessAttributes,
-           ref IntPtr lpThreadAttributes,
-           bool bInheritHandles,
-           uint dwCreationFlags,
-           IntPtr lpEnvironment,
-           string lpCurrentDirectory,
-           [In] ref STARTUPINFO lpStartupInfo,
-           out PROCESS_INFORMATION lpProcessInformation);
+        static extern bool CreateProcessW(string lpApplicationName,
+            StringBuilder lpCommandLine,
+            IntPtr lpProcessAttributes,
+            IntPtr lpThreadAttributes,
+            bool bInheritHandles,
+            uint dwCreationFlags,
+            IntPtr lpEnvironment,
+            string lpCurrentDirectory,
+            [In] ref STARTUPINFO lpStartupInfo,
+            out PROCESS_INFORMATION lpProcessInformation);
 
+        /*
         [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
         static extern SafeFileHandle CreateNamedPipe(string lpName, uint dwOpenMode,
            uint dwPipeMode, uint nMaxInstances, uint nOutBufferSize, uint nInBufferSize,
            uint nDefaultTimeOut, SECURITY_ATTRIBUTES lpSecurityAttributes);
+           */
 
         [DllImport("kernel32.dll", SetLastError = true)]
         [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
         [SuppressUnmanagedCodeSecurity]
         [return: MarshalAs(UnmanagedType.Bool)]
         static extern bool CloseHandle(IntPtr hObject);
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        public static extern IntPtr GetStdHandle(int whichHandle);
+
         #endregion
     }
+
     [StructLayout(LayoutKind.Sequential)]
-    internal class STARTUPINFO : IDisposable
+    public struct PROCESS_INFORMATION
     {
-        public const int STARTF_USESTDHANDLES = 0x00000100;
 
-        public int cb;
-        public IntPtr lpReserved = IntPtr.Zero;
-        public IntPtr lpDesktop = IntPtr.Zero;
-        public IntPtr lpTitle = IntPtr.Zero;
-        public int dwX = 0;
-        public int dwY = 0;
-        public int dwXSize = 0;
-        public int dwYSize = 0;
-        public int dwXCountChars = 0;
-        public int dwYCountChars = 0;
-        public int dwFillAttribute = 0;
-        public int dwFlags = 0;
-        public short wShowWindow = 0;
-        public short cbReserved2 = 0;
-        public IntPtr lpReserved2 = IntPtr.Zero;
-        public SafeHandle hStdInput = new SafeFileHandle(IntPtr.Zero, false);
-        //public SafeFileHandle hStdOutput = new SafeFileHandle(IntPtr.Zero, false);
-        //public SafeFileHandle hStdError = new SafeFileHandle(IntPtr.Zero, false);
-        public SafeHandle hStdOutput;
-        public SafeHandle hStdError;
-        public STARTUPINFO(SafeHandle stdout, SafeHandle stderr)
-        {
-            cb = Marshal.SizeOf(this);
-            hStdOutput = stdout;
-            hStdError = stderr;
-            this.dwFlags = STARTF_USESTDHANDLES;
-        }
-        public void Dispose()
-        {
-            // close the handles created for child process
-            if (hStdInput != null && !hStdInput.IsInvalid)
-            {
-                hStdInput.Close();
-                hStdInput = null;
-            }
-
-            if (hStdOutput != null && !hStdOutput.IsInvalid)
-            {
-                hStdOutput.Close();
-                hStdOutput = null;
-            }
-
-            if (hStdError != null && !hStdError.IsInvalid)
-            {
-                hStdError.Close();
-                hStdError = null;
-            }
-        }
-    }
-    [StructLayout(LayoutKind.Sequential)]
-    internal struct PROCESS_INFORMATION
-    {
         public IntPtr hProcess;
         public IntPtr hThread;
-        public int dwProcessId;
-        public int dwThreadId;
+        public uint dwProcessId;
+        public uint dwThreadId;
     }
+
     [StructLayout(LayoutKind.Sequential)]
-    internal struct SECURITY_ATTRIBUTES
+    public struct STARTUPINFO
     {
-        public int nLength;
-        public IntPtr lpSecurityDescriptor;
-        public int bInheritHandle;
+        public uint cb;
+        public string lpReserved;
+        public string lpDesktop;
+        public string lpTitle;
+        public uint dwX;
+        public uint dwY;
+        public uint dwXSize;
+        public uint dwYSize;
+        public uint dwXCountChars;
+        public uint dwYCountChars;
+        public uint dwFillAttribute;
+        public uint dwFlags;
+        public short wShowWindow;
+        public short cbReserved2;
+        public IntPtr lpReserved2;
+        public IntPtr hStdInput;
+        public IntPtr hStdOutput;
+        public IntPtr hStdError;
     }
 }

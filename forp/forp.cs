@@ -48,6 +48,12 @@ namespace forp
         {
             log.dbg("starting: [{0}] [{1}]", exe, args);
 
+            await ProcessRedirectAsync.Start(exe + " " + args, onProcessOutput: (kind, line) =>
+            {
+                writer.WriteLine(line);
+            });
+
+                /*
             int rc = await ProcessRedirect.StartAsync(
                 new System.Diagnostics.ProcessStartInfo(exe, args),
                 OnOutput: (kind, line) =>
@@ -55,9 +61,9 @@ namespace forp
                     writer.WriteLine(line);
                 },
                 cancel: cancel);
-
-            log.dbg("proc ended with rc={0}", rc);
-            return rc;
+                */
+            log.dbg("proc ended");
+            return 99;
         }
         static void DoUntilTaskFinished(Task task, TimeSpan timeout, Action doEvery)
         {
