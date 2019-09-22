@@ -50,6 +50,7 @@ namespace forp
 
             await ProcessRedirectAsync.Start(exe + " " + args, onProcessOutput: (kind, line) =>
             {
+                Console.WriteLine($"out: {line}");
                 writer.WriteLine(line);
             });
 

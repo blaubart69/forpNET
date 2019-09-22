@@ -36,7 +36,6 @@ namespace Spi
             {
                 CreatePipeAsyncReadSyncWrite(out NamedPipeServerStream reader, out NamedPipeClientStream writer);
                 using (reader)
-                using (writer)
                 {
                     const int STARTF_USESTDHANDLES = 0x00000100;
                     const int STD_INPUT_HANDLE = -10;
@@ -65,6 +64,8 @@ namespace Spi
                         
                         throw wex;
                     }
+
+                    writer.Close();
 
                     Task stdout = Misc.ReadLinesAsync(new StreamReader(reader), (line) => onProcessOutput(KINDOFOUTPUT.STDOUT, line));
                     Task stderr = Misc.ReadLinesAsync(new StreamReader(reader), (line) => onProcessOutput(KINDOFOUTPUT.STDERR, line));
