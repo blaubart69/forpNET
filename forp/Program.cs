@@ -10,6 +10,11 @@ using static forp.forp;
 
 namespace forp
 {
+    class ProcCtx
+    {
+        public string prefix;
+        public string commandline;
+    }
     class Program
     {
         static int Main(string[] args)
@@ -46,27 +51,33 @@ namespace forp
             
             using (inputstream)
             {
-                var commandlines2Exce =
+                var commandlines2Exec =
                     ReadLines(inputstream)
-                    .Select(l => Native.CommandLineToArgv(l))
-                    .Select(substitutes => SubstitutePercent(commandTemplate, substitutes))
-                    .Select(cmdlineArgs => String.Join(" ", cmdlineArgs.Select(a => a.Contains(' ') ? "\"" + a + "\"" : a)));
+                    .Select(inputlines => Native.CommandLineToArgv(inputlines))
+                    .Select(substitutes =>
+                        new ProcCtx
+                        {
+                            prefix = opts.printPrefix ? substitutes[0] : null,
+                            commandline = String.Join(" ", 
+                                SubstitutePercent(commandTemplate, substitutes)
+                                .Select(arg => arg.Contains(' ') ? "\"" + arg + "\"" : arg))
+                        });
 
                 if ( opts.firstOnly )
                 {
-                    commandlines2Exce = commandlines2Exce.Take(1);
+                    commandlines2Exec = commandlines2Exec.Take(1);
                 }
 
                 if (opts.dryrun)
                 {
-                    foreach (var p in commandlines2Exce)
+                    foreach (var p in commandlines2Exec)
                     {
-                        log.inf($"{p}");
+                        log.inf($"{p.commandline}");
                     }
                 }
                 else
                 {
-                    forp.Run(commandlines2Exce, opts.maxParallel);
+                    forp.Run(commandlines2Exec, opts.maxParallel);
                 }
             }
 

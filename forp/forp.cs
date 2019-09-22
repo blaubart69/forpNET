@@ -14,7 +14,7 @@ namespace forp
     static class forp
     {
         static Log log = Log.GetLogger();
-        public static void Run(IEnumerable<string> ProcessesToStart, int maxParallel)
+        public static void Run(IEnumerable<ProcCtx> ProcessesToStart, int maxParallel)
         {
             using (CancellationTokenSource cts = new CancellationTokenSource())
             using (TextWriter writer         = TextWriter.Synchronized(new StreamWriter(@".\forp.out.txt",      append: false, encoding: Encoding.UTF8)))
@@ -26,10 +26,10 @@ namespace forp
                 var procs = new MaxTasks();
                 var procsTask = procs.Start(
                     tasks: ProcessesToStart.Select(
-                        async (procCommandLine) =>
+                        async (procToRun) =>
                             {
-                                int rc = await RunOneProcess(procCommandLine, writer, cancel).ConfigureAwait(false);
-                                exitcodeWriter.WriteLine($"{rc}\t{procCommandLine}");
+                                int rc = await RunOneProcess(procToRun.commandline, procToRun.prefix, writer, cancel).ConfigureAwait(false);
+                                exitcodeWriter.WriteLine($"{rc}\t{procToRun}");
                             }),
                     MaxParallel: maxParallel,
                     cancel: cts.Token);
@@ -39,14 +39,21 @@ namespace forp
                 DoUntilTaskFinished(procsTask, TimeSpan.FromSeconds(1), () => WriteStatusLine(status, procs, currProcess));
             }
         }
-        static async Task<int> RunOneProcess(string commandline, TextWriter writer, CancellationToken cancel)
+        static async Task<int> RunOneProcess(string commandline, string prefix, TextWriter writer, CancellationToken cancel)
         {
             log.dbg("starting: [{0}]", commandline);
 
             await ProcessRedirectAsync.Start(commandline, onProcessOutput: (kind, line) =>
             {
                 log.dbg("out: {0}", line);
-                writer.WriteLine(line);
+                if (String.IsNullOrEmpty(prefix))
+                {
+                    writer.WriteLine(line);
+                }
+                else
+                {
+                    writer.WriteLine(prefix + "\t" + line);
+                }
             });
 
             log.dbg("proc ended");
