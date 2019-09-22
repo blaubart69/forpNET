@@ -14,12 +14,7 @@ namespace forp
     static class forp
     {
         static Log log = Log.GetLogger();
-        public struct ProcToExec
-        {
-            public string Exe;
-            public string Args;
-        }
-        public static void Run(IEnumerable<ProcToExec> commandline, int maxParallel)
+        public static void Run(IEnumerable<string> ProcessesToStart, int maxParallel)
         {
             using (CancellationTokenSource cts = new CancellationTokenSource())
             using (TextWriter writer         = TextWriter.Synchronized(new StreamWriter(@".\forp.out.txt",      append: false, encoding: Encoding.UTF8)))
@@ -30,11 +25,11 @@ namespace forp
                 Task.Run(() => HandleKeys(cts, writer));
                 var procs = new MaxTasks();
                 var procsTask = procs.Start(
-                    tasks: commandline.Select(
-                        async (cl) =>
+                    tasks: ProcessesToStart.Select(
+                        async (procCommandLine) =>
                             {
-                                int rc = await RunOneProcess(cl.Exe, cl.Args, writer, cancel).ConfigureAwait(false);
-                                exitcodeWriter.WriteLine($"{rc}\t{cl.Exe} {cl.Args}");
+                                int rc = await RunOneProcess(procCommandLine, writer, cancel).ConfigureAwait(false);
+                                exitcodeWriter.WriteLine($"{rc}\t{procCommandLine}");
                             }),
                     MaxParallel: maxParallel,
                     cancel: cts.Token);
@@ -44,25 +39,16 @@ namespace forp
                 DoUntilTaskFinished(procsTask, TimeSpan.FromSeconds(1), () => WriteStatusLine(status, procs, currProcess));
             }
         }
-        static async Task<int> RunOneProcess(string exe, string args, TextWriter writer, CancellationToken cancel)
+        static async Task<int> RunOneProcess(string commandline, TextWriter writer, CancellationToken cancel)
         {
-            log.dbg("starting: [{0}] [{1}]", exe, args);
+            log.dbg("starting: [{0}]", commandline);
 
-            await ProcessRedirectAsync.Start(exe + " " + args, onProcessOutput: (kind, line) =>
+            await ProcessRedirectAsync.Start(commandline, onProcessOutput: (kind, line) =>
             {
                 log.dbg("out: {0}", line);
                 writer.WriteLine(line);
             });
 
-                /*
-            int rc = await ProcessRedirect.StartAsync(
-                new System.Diagnostics.ProcessStartInfo(exe, args),
-                OnOutput: (kind, line) =>
-                {
-                    writer.WriteLine(line);
-                },
-                cancel: cancel);
-                */
             log.dbg("proc ended");
             return 99;
         }

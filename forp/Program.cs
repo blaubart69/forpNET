@@ -49,8 +49,8 @@ namespace forp
                 var commandlines2Exce =
                     ReadLines(inputstream)
                     .Select(l => Native.CommandLineToArgv(l))
-                    .Select(substitutes => SubstitutePercent(commandTemplate, substitutes)) 
-                    .Select(tokens => new ProcToExec() { Exe = tokens[0], Args = String.Join(" ", tokens.Skip(1)) });
+                    .Select(substitutes => SubstitutePercent(commandTemplate, substitutes))
+                    .Select(cmdlineArgs => String.Join(" ", cmdlineArgs.Select(a => a.Contains(' ') ? "\"" + a + "\"" : a)));
 
                 if ( opts.firstOnly )
                 {
@@ -61,7 +61,7 @@ namespace forp
                 {
                     foreach (var p in commandlines2Exce)
                     {
-                        log.inf("[{0}] [{1}]", p.Exe, p.Args);
+                        log.inf($"{p}");
                     }
                 }
                 else
