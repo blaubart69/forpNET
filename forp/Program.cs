@@ -36,6 +36,7 @@ namespace forp
             {
                 commandTemplate.InsertRange(0, new string[] { Environment.GetEnvironmentVariable("ComSpec"), "/c" });
             }
+
             log.dbgKeyVal("CommandTemplate", String.Join(" ", commandTemplate));
 
             TextReader inputstream;

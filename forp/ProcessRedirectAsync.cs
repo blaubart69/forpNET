@@ -36,19 +36,24 @@ namespace Spi
             var pi = new PROCESS_INFORMATION();
             try
             {
-                CreatePipeAsyncReadSyncWrite(out NamedPipeServerStream reader, out NamedPipeClientStream writer);
-                using (reader)
-                using (writer)
+                CreatePipeAsyncReadSyncWrite(out NamedPipeServerStream readerOut, out NamedPipeClientStream writerOut);
+                CreatePipeAsyncReadSyncWrite(out NamedPipeServerStream readerErr, out NamedPipeClientStream writerErr);
+
+                using (readerOut)
+                using (writerOut)
+                using (readerErr)
+                using (writerErr)
                 {
                     const int STARTF_USESTDHANDLES = 0x00000100;
                     const int STD_INPUT_HANDLE = -10;
+                    const int STD_ERROR_HANDLE = -12;
                     const uint IDLE_PRIORITY_CLASS = 0x00000040;
 
                     var si = new STARTUPINFO();
                     si.cb = (uint)Marshal.SizeOf<STARTUPINFO>();
                     si.dwFlags = STARTF_USESTDHANDLES;
-                    si.hStdOutput = writer.SafePipeHandle.DangerousGetHandle();
-                    si.hStdError  = writer.SafePipeHandle.DangerousGetHandle();
+                    si.hStdOutput = writerOut.SafePipeHandle.DangerousGetHandle();
+                    si.hStdError  = writerErr.SafePipeHandle.DangerousGetHandle();
                     si.hStdInput = GetStdHandle(STD_INPUT_HANDLE);
 
                     if (!CreateProcessW(
@@ -76,10 +81,11 @@ namespace Spi
                     //  this Close() is very importante.
                     //  When we do not close the writer handle here, the read from out/err will hang.
                     //
-                    writer.Close();
+                    writerOut.Close();
+                    writerErr.Close();
 
-                    Task stdout = Misc.ReadLinesAsync(new StreamReader(reader), (line) => onProcessOutput(KINDOFOUTPUT.STDOUT, line));
-                    Task stderr = Misc.ReadLinesAsync(new StreamReader(reader), (line) => onProcessOutput(KINDOFOUTPUT.STDERR, line));
+                    Task stdout = Misc.ReadLinesAsync(new StreamReader(readerOut), (line) => onProcessOutput(KINDOFOUTPUT.STDOUT, line));
+                    Task stderr = Misc.ReadLinesAsync(new StreamReader(readerErr), (line) => onProcessOutput(KINDOFOUTPUT.STDERR, line));
 
                     await Task.WhenAll(stdout, stderr);
                 }
@@ -113,7 +119,7 @@ namespace Spi
                 inBufferSize: nSize,
                 outBufferSize: nSize,
                 pipeSecurity: null,
-                inheritability: HandleInheritability.Inheritable);
+                inheritability: HandleInheritability.None);
             
             WritePipe = new NamedPipeClientStream(
                 serverName:         ".", // The name of the remote computer to connect to, or "." to specify the local computer.
