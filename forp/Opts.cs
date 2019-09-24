@@ -28,7 +28,7 @@ namespace forp
             var cmdOpts = new BeeOptsBuilder()
                 .Add('f',  "file", OPTTYPE.VALUE, "input file", o => tmpOpts.inputfilename = o)
                 .Add('c',  "cmd", OPTTYPE.BOOL, "execute with [%ComSpec% /C]", o => tmpOpts.runCmdExe = true)
-                .Add(null, "noprefix", OPTTYPE.BOOL, "do not prefix every output line wiht %1", o => tmpOpts.printPrefix = false)
+                .Add(null, "noprefix", OPTTYPE.BOOL, "do not prefix every output line with %1", o => tmpOpts.printPrefix = false)
                 .Add('p',  "parallel", OPTTYPE.VALUE, $"run max parallel processes (default: {tmpOpts.maxParallel})", o => tmpOpts.maxParallel = Convert.ToInt32(o))
                 .Add('1',  "first", OPTTYPE.BOOL, "run only for first line in inputfile", o => tmpOpts.firstOnly = true )
                 .Add('d',  "dryrun", OPTTYPE.BOOL, "dry run", o => tmpOpts.dryrun = true)
@@ -41,7 +41,7 @@ namespace forp
             if (showhelp)
             {
                 Console.WriteLine(
-                      "forpNET.exe {executable to start in parallel with different arguments coming from stdin/file}"
+                      "usage: forp.exe [OPTIONS] -- {exe to start in parallel with different arguments coming from stdin or file}"
                     + "\nyou can use %1, %2... to reference your input tokens\n");
                 Spi.BeeOpts.PrintOptions(cmdOpts);
                 return false;

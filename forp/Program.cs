@@ -36,6 +36,12 @@ namespace forp
             {
                 commandTemplate.InsertRange(0, new string[] { Environment.GetEnvironmentVariable("ComSpec"), "/c" });
             }
+            else if (commandTemplate[0].EndsWith(".vbs", StringComparison.OrdinalIgnoreCase))
+            {
+                commandTemplate.InsertRange(0, new string[] { 
+                    Path.Combine(Environment.GetEnvironmentVariable("SystemRoot"),"system32","cscript.exe"), 
+                    "//NOLOGO" });
+            }
 
             log.dbgKeyVal("CommandTemplate", String.Join(" ", commandTemplate));
 
