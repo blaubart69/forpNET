@@ -41,8 +41,9 @@ namespace forp
             if (showhelp)
             {
                 Console.WriteLine(
-                      "usage: forp.exe [OPTIONS] -- {exe to start in parallel with different arguments coming from stdin or file}"
-                    + "\nyou can use %1, %2... to reference your input tokens\n");
+                      "\nusage: forp.exe [OPTIONS] -- {exe} [fixed options or %1, %2, ...]"
+                    + "\n  Each line from the input is parsed with CommandLineToArgv() to produce %1, %2, ..."
+                    + "\n\nOptions:");
                 Spi.BeeOpts.PrintOptions(cmdOpts);
                 return false;
             }
