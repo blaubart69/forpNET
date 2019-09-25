@@ -46,7 +46,7 @@ namespace Spi
                 {
                     const int STARTF_USESTDHANDLES = 0x00000100;
                     const int STD_INPUT_HANDLE = -10;
-                    const int STD_ERROR_HANDLE = -12;
+                    //const int STD_ERROR_HANDLE = -12;
                     const uint IDLE_PRIORITY_CLASS = 0x00000040;
 
                     var si = new STARTUPINFO();

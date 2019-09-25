@@ -34,9 +34,24 @@ namespace Spi
         #region Logging
         public void dbgKeyVal(string key, object value)
         {
+            if (SkipLog(LEVEL.DEBUG)) return;
             this.dbg("{0}:\t[{1}]", key, value);
         }
-        public void dbg(string format, params object[] args) { write(LEVEL.DEBUG, 'D', format, args); }
+        public void dbg(string text)
+        {
+            if (SkipLog(LEVEL.DEBUG)) return;
+            write(LEVEL.DEBUG, 'D', text);
+        }
+        public void dbg(string format, object arg1) 
+        {
+            if (SkipLog(LEVEL.DEBUG)) return;
+            write(LEVEL.DEBUG, 'D', format, arg1); 
+        }
+        public void dbg(string format, object arg1, object arg2)
+        {
+            if (SkipLog(LEVEL.DEBUG)) return;
+            write(LEVEL.DEBUG, 'D', format, arg1, arg2);
+        }
         public void inf(string format, params object[] args) { write(LEVEL.INFO, 'I', format, args); }
         public void wrn(string format, params object[] args) { write(LEVEL.WARNING, 'W', format, args); }
         public void err(string format, params object[] args) { write(LEVEL.ERROR, 'E', format, args); }
@@ -151,6 +166,10 @@ namespace Spi
                     Console.ForegroundColor = ColorBefore;
                 }
             }
+        }
+        private bool SkipLog(LEVEL level)
+        {
+            return level > this._currentLevel;
         }
         #region STATIC
         private static readonly object InitLock = new object();

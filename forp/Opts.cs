@@ -31,8 +31,8 @@ namespace forp
                 .Add(null, "noprefix", OPTTYPE.BOOL, "do not prefix every output line with %1", o => tmpOpts.printPrefix = false)
                 .Add('p',  "parallel", OPTTYPE.VALUE, $"run max parallel processes (default: {tmpOpts.maxParallel})", o => tmpOpts.maxParallel = Convert.ToInt32(o))
                 .Add('1',  "first", OPTTYPE.BOOL, "run only for first line in inputfile", o => tmpOpts.firstOnly = true )
-                .Add('d',  "dryrun", OPTTYPE.BOOL, "dry run", o => tmpOpts.dryrun = true)
-                .Add('v',  "verbose", OPTTYPE.BOOL, "verbose output", o => tmpOpts.debug = true)
+                .Add('n',  "dryrun", OPTTYPE.BOOL, "dry run", o => tmpOpts.dryrun = true)
+                .Add('d',  "debug", OPTTYPE.BOOL, "debug output", o => tmpOpts.debug = true)
                 .Add('h',  "help", OPTTYPE.BOOL, "show help", o => showhelp = true)
                 .GetOpts();
 

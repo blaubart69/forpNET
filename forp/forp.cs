@@ -18,7 +18,7 @@ namespace forp
         {
             using (CancellationTokenSource cts = new CancellationTokenSource())
             using (TextWriter writer         = TextWriter.Synchronized(new StreamWriter(@".\forp.out.txt",      append: false, encoding: Encoding.UTF8)))
-            using (TextWriter exitcodeWriter = TextWriter.Synchronized(new StreamWriter(@".\forp.ExitCode.txt", append: false, encoding: Encoding.UTF8)))
+            //using (TextWriter exitcodeWriter = TextWriter.Synchronized(new StreamWriter(@".\forp.ExitCode.txt", append: false, encoding: Encoding.UTF8)))
             {
                 log.dbg($"starting with maxParallel: {maxParallel}");
                 var cancel = cts.Token;
@@ -28,8 +28,8 @@ namespace forp
                     tasks: ProcessesToStart.Select(
                         async (procToRun) =>
                             {
-                                int rc = await RunOneProcess(procToRun.commandline, procToRun.prefix, writer, cancel).ConfigureAwait(false);
-                                exitcodeWriter.WriteLine($"{rc}\t{procToRun}");
+                                await RunOneProcess(procToRun.commandline, procToRun.prefix, writer, cancel).ConfigureAwait(false);
+                                //exitcodeWriter.WriteLine($"{rc}\t{procToRun}");
                             }),
                     MaxParallel: maxParallel,
                     cancel: cts.Token);
@@ -39,7 +39,7 @@ namespace forp
                 DoUntilTaskFinished(procsTask, TimeSpan.FromSeconds(1), () => WriteStatusLine(status, procs, currProcess));
             }
         }
-        static async Task<int> RunOneProcess(string commandline, string prefix, TextWriter writer, CancellationToken cancel)
+        static async Task RunOneProcess(string commandline, string prefix, TextWriter writer, CancellationToken cancel)
         {
             log.dbg("starting: [{0}]", commandline);
 
@@ -57,7 +57,6 @@ namespace forp
             });
 
             log.dbg("proc ended");
-            return 99;
         }
         static void DoUntilTaskFinished(Task task, TimeSpan timeout, Action doEvery)
         {
