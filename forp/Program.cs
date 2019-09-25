@@ -19,29 +19,18 @@ namespace forp
     {
         static int Main(string[] args)
         {
-            if ( ! Opts.ParseOpts(args, out Opts opts, out List<string> commandTemplate) )
+            if (!Opts.ParseOpts(args, out Opts opts, out List<string> commandTemplate))
             {
                 return 1;
             }
 
-            if ( opts.debug )
+            if (opts.debug)
             {
                 Log.SetLevel(Log.LEVEL.DEBUG);
             }
             Log log = Log.GetLogger();
-
-            if (opts.runCmdExe 
-                || commandTemplate[0].EndsWith(".bat", StringComparison.OrdinalIgnoreCase) 
-                || commandTemplate[0].EndsWith(".cmd", StringComparison.OrdinalIgnoreCase))
-            {
-                commandTemplate.InsertRange(0, new string[] { Environment.GetEnvironmentVariable("ComSpec"), "/c" });
-            }
-            else if (commandTemplate[0].EndsWith(".vbs", StringComparison.OrdinalIgnoreCase))
-            {
-                commandTemplate.InsertRange(0, new string[] { 
-                    Path.Combine(Environment.GetEnvironmentVariable("SystemRoot"),"system32","cscript.exe"), 
-                    "//NOLOGO" });
-            }
+            bool appendAllInputTokens = commandTemplate.Count == 1;
+            ExpandCommand(opts, commandTemplate);
 
             log.dbgKeyVal("CommandTemplate", String.Join(" ", commandTemplate));
 
@@ -55,22 +44,12 @@ namespace forp
             {
                 inputstream = new StreamReader(opts.inputfilename);
             }
-            
+
             using (inputstream)
             {
-                var commandlines2Exec =
-                    ReadLines(inputstream)
-                    .Select(inputlines => Native.CommandLineToArgv(inputlines))
-                    .Select(substitutes =>
-                        new ProcCtx
-                        {
-                            prefix = opts.printPrefix ? substitutes[0] : null,
-                            commandline = String.Join(" ", 
-                                SubstitutePercent(commandTemplate, substitutes)
-                                .Select(arg => arg.Contains(' ') ? "\"" + arg + "\"" : arg))
-                        });
+                IEnumerable<ProcCtx> commandlines2Exec = ContructCommandline(opts.printPrefix, commandTemplate, inputstream, appendAllInputTokens);
 
-                if ( opts.firstOnly )
+                if (opts.firstOnly)
                 {
                     commandlines2Exec = commandlines2Exec.Take(1);
                 }
@@ -90,7 +69,48 @@ namespace forp
 
             return 0;
         }
-        static List<string> SubstitutePercent(List<string> commandTemplate, string[] substitutes)
+
+        private static void ExpandCommand(Opts opts, List<string> commandTemplate)
+        {
+            if (opts.runCmdExe
+                            || commandTemplate[0].EndsWith(".bat", StringComparison.OrdinalIgnoreCase)
+                            || commandTemplate[0].EndsWith(".cmd", StringComparison.OrdinalIgnoreCase))
+            {
+                commandTemplate.InsertRange(0, new string[] { Environment.GetEnvironmentVariable("ComSpec"), "/c" });
+            }
+            else if (commandTemplate[0].EndsWith(".vbs", StringComparison.OrdinalIgnoreCase))
+            {
+                commandTemplate.InsertRange(0, new string[] {
+                    Path.Combine(Environment.GetEnvironmentVariable("SystemRoot"),"system32","cscript.exe"),
+                    "//NOLOGO" });
+            }
+        }
+
+        private static IEnumerable<ProcCtx> ContructCommandline(bool printPrefix, List<string> commandTemplate, TextReader inputstream, bool appendAllInputTokens)
+        {
+            return ReadLines(inputstream)
+                .Select(inputlines => Native.CommandLineToArgv(inputlines))
+                .Select(inputArgs =>
+                {
+                    IEnumerable<string> cmdLineTokens;
+                    if (appendAllInputTokens)
+                    {
+                        cmdLineTokens = commandTemplate.Concat(inputArgs);
+                    }
+                    else
+                    {
+                        cmdLineTokens = SubstitutePercentVariables(commandTemplate, inputArgs);
+                    }
+
+                    return new ProcCtx
+                    {
+                        prefix = printPrefix ? inputArgs[0] : null,
+                        commandline = String.Join(" ", cmdLineTokens.Select(arg => QuoteIfNeeded(arg)))
+                    };
+                });
+        }
+
+        static List<string> SubstitutePercentVariables(List<string> commandTemplate, string[] substitutes)
         {
             List<string> result = new List<string>(commandTemplate);
 
@@ -104,6 +124,17 @@ namespace forp
             }
 
             return result;
+        }
+        static string QuoteIfNeeded(string token)
+        {
+            if (token.Contains(' '))
+            {
+                return "\"" + token + "\"";
+            }
+            else
+            {
+                return token;
+            }
         }
         static IEnumerable<string> ReadLines(TextReader reader)
         {

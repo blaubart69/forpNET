@@ -41,7 +41,7 @@ namespace forp
             if (showhelp)
             {
                 Console.WriteLine(
-                      "\nusage: forp.exe [OPTIONS] -- {exe} [fixed options or %1, %2, ...]"
+                      "\nusage: forp.exe [OPTIONS] -- {exe} [options mixed with %1, %2, ...]"
                     + "\n  Each line from the input is parsed with CommandLineToArgv() to produce %1, %2, ..."
                     + "\n\nOptions:");
                 Spi.BeeOpts.PrintOptions(cmdOpts);
