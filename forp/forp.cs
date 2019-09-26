@@ -16,6 +16,8 @@ namespace forp
         static Log log = Log.GetLogger();
         public static void Run(IEnumerable<ProcCtx> ProcessesToStart, int maxParallel)
         {
+            ProcessRedirectAsync.Init();
+
             using (CancellationTokenSource cts = new CancellationTokenSource())
             using (TextWriter writer         = TextWriter.Synchronized(new StreamWriter(@".\forp.out.txt",      append: false, encoding: Encoding.UTF8)))
             //using (TextWriter exitcodeWriter = TextWriter.Synchronized(new StreamWriter(@".\forp.ExitCode.txt", append: false, encoding: Encoding.UTF8)))
