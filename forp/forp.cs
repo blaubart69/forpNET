@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -85,9 +86,14 @@ namespace forp
         {
             currProcess.Refresh();
 
+            string statsThreads = String.Join(" | ",
+                currProcess.Threads.Cast<ProcessThread>()
+                    .GroupBy(keySelector: t => t.ThreadState)
+                    .Select(grp => $"{grp.Key.ToString()} ({(grp.Key == System.Diagnostics.ThreadState.Running ? grp.Count()-1 : grp.Count())})"));
+
             statusLine.Write($"running/done\t{processes.Running}/{processes.Done}"
                 + $"\tthreads: {currProcess.Threads.Count}"
-                + $"\tprivMem: {Misc.StrFormatByteSize(currProcess.PrivateMemorySize64)}");
+                + $"\tthreadStates: {statsThreads}");
         }
     }
 }
