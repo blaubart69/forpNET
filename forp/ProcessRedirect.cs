@@ -1,4 +1,5 @@
-﻿using System;
+﻿using forp;
+using System;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
@@ -41,8 +42,8 @@ namespace Spi
                 {
                     await Task
                         .WhenAll(
-                            ReadLinesAsync(_proc.StandardOutput, (line) => OnOutput(KINDOFOUTPUT.STDOUT, line)),
-                            ReadLinesAsync(_proc.StandardError,  (line) => OnOutput(KINDOFOUTPUT.STDERR, line)))
+                            Misc.ReadLinesAsync(_proc.StandardOutput, (line) => OnOutput(KINDOFOUTPUT.STDOUT, line)),
+                            Misc.ReadLinesAsync(_proc.StandardError,  (line) => OnOutput(KINDOFOUTPUT.STDERR, line)))
                         .ConfigureAwait(false);
                 }
 
@@ -70,13 +71,6 @@ namespace Spi
                 log.win32err(wex, "Process.Kill()");
             }
         }
-        static async Task ReadLinesAsync(TextReader input, Action<string> onLine)
-        {
-            string line;
-            while ((line = await input.ReadLineAsync().ConfigureAwait(false)) != null)
-            {
-                onLine(line);
-            }
-        }
+        
     }
 }

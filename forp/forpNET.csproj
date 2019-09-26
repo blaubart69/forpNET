@@ -7,7 +7,7 @@
     <ProjectGuid>{2838BA55-8675-4E0F-83D0-5940D81031C0}</ProjectGuid>
     <OutputType>Exe</OutputType>
     <RootNamespace>forp</RootNamespace>
-    <AssemblyName>forpNET</AssemblyName>
+    <AssemblyName>forp</AssemblyName>
     <TargetFrameworkVersion>v4.6.2</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
@@ -23,6 +23,7 @@
     <DefineConstants>DEBUG;TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
+    <Prefer32Bit>false</Prefer32Bit>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <PlatformTarget>AnyCPU</PlatformTarget>
@@ -42,8 +43,10 @@
     <Compile Include="forp.cs" />
     <Compile Include="Log.cs" />
     <Compile Include="MaxTasks.cs" />
+    <Compile Include="Misc.cs" />
     <Compile Include="Native.cs" />
     <Compile Include="Opts.cs" />
+    <Compile Include="ProcessRedirectAsync.cs" />
     <Compile Include="ProcessRedirect.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

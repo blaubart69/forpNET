@@ -14,27 +14,22 @@ namespace forp
     static class forp
     {
         static Log log = Log.GetLogger();
-        public struct ProcToExec
-        {
-            public string Exe;
-            public string Args;
-        }
-        public static void Run(IEnumerable<ProcToExec> commandline, int maxParallel)
+        public static void Run(IEnumerable<ProcCtx> ProcessesToStart, int maxParallel)
         {
             using (CancellationTokenSource cts = new CancellationTokenSource())
             using (TextWriter writer         = TextWriter.Synchronized(new StreamWriter(@".\forp.out.txt",      append: false, encoding: Encoding.UTF8)))
-            using (TextWriter exitcodeWriter = TextWriter.Synchronized(new StreamWriter(@".\forp.ExitCode.txt", append: false, encoding: Encoding.UTF8)))
+            //using (TextWriter exitcodeWriter = TextWriter.Synchronized(new StreamWriter(@".\forp.ExitCode.txt", append: false, encoding: Encoding.UTF8)))
             {
                 log.dbg($"starting with maxParallel: {maxParallel}");
                 var cancel = cts.Token;
                 Task.Run(() => HandleKeys(cts, writer));
                 var procs = new MaxTasks();
                 var procsTask = procs.Start(
-                    tasks: commandline.Select(
-                        async (cl) =>
+                    tasks: ProcessesToStart.Select(
+                        async (procToRun) =>
                             {
-                                int rc = await RunOneProcess(cl.Exe, cl.Args, writer, cancel).ConfigureAwait(false);
-                                exitcodeWriter.WriteLine($"{rc}\t{cl.Exe} {cl.Args}");
+                                await RunOneProcess(procToRun.commandline, procToRun.prefix, writer, cancel).ConfigureAwait(false);
+                                //exitcodeWriter.WriteLine($"{rc}\t{procToRun}");
                             }),
                     MaxParallel: maxParallel,
                     cancel: cts.Token);
@@ -44,20 +39,24 @@ namespace forp
                 DoUntilTaskFinished(procsTask, TimeSpan.FromSeconds(1), () => WriteStatusLine(status, procs, currProcess));
             }
         }
-        static async Task<int> RunOneProcess(string exe, string args, TextWriter writer, CancellationToken cancel)
+        static async Task RunOneProcess(string commandline, string prefix, TextWriter writer, CancellationToken cancel)
         {
-            log.dbg("starting: [{0}] [{1}]", exe, args);
+            log.dbg("starting: [{0}]", commandline);
 
-            int rc = await ProcessRedirect.StartAsync(
-                new System.Diagnostics.ProcessStartInfo(exe, args),
-                OnOutput: (kind, line) =>
+            await ProcessRedirectAsync.Start(commandline, onProcessOutput: (kind, line) =>
+            {
+                log.dbg("out: {0}", line);
+                if (String.IsNullOrEmpty(prefix))
                 {
                     writer.WriteLine(line);
-                },
-                cancel: cancel);
+                }
+                else
+                {
+                    writer.WriteLine(prefix + "\t" + line);
+                }
+            });
 
-            log.dbg("proc ended with rc={0}", rc);
-            return rc;
+            log.dbg("proc ended");
         }
         static void DoUntilTaskFinished(Task task, TimeSpan timeout, Action doEvery)
         {
@@ -86,7 +85,7 @@ namespace forp
 
             statusLine.Write($"running/done\t{processes.Running}/{processes.Done}"
                 + $"\tthreads: {currProcess.Threads.Count}"
-                + $"\tprivMem: {Native.StrFormatByteSize(currProcess.PrivateMemorySize64)}");
+                + $"\tprivMem: {Misc.StrFormatByteSize(currProcess.PrivateMemorySize64)}");
         }
     }
 }
