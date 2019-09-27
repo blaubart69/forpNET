@@ -12,6 +12,7 @@ namespace forp
         public int maxParallel = 16;
         public bool firstOnly;
         public bool printPrefix = true;
+        public bool skipEmptyLines = false;
         public bool debug;
         public bool dryrun;
 
@@ -32,6 +33,7 @@ namespace forp
                 .Add('p',  "parallel", OPTTYPE.VALUE, $"run max parallel processes (default: {tmpOpts.maxParallel})", o => tmpOpts.maxParallel = Convert.ToInt32(o))
                 .Add('1',  "first", OPTTYPE.BOOL, "run only for first line in inputfile", o => tmpOpts.firstOnly = true )
                 .Add('n',  "dryrun", OPTTYPE.BOOL, "dry run", o => tmpOpts.dryrun = true)
+                .Add('e',  "skipempty", OPTTYPE.BOOL, "do not write empty lines to output. String.IsNullOrWhiteSpace()", o => tmpOpts.skipEmptyLines = true)
                 .Add('d',  "debug", OPTTYPE.BOOL, "debug output", o => tmpOpts.debug = true)
                 .Add('h',  "help", OPTTYPE.BOOL, "show help", o => showhelp = true)
                 .GetOpts();

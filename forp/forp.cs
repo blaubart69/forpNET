@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -15,7 +14,7 @@ namespace forp
     static class forp
     {
         static Log log = Log.GetLogger();
-        public static void Run(IEnumerable<ProcCtx> ProcessesToStart, int maxParallel)
+        public static void Run(IEnumerable<ProcCtx> ProcessesToStart, int maxParallel, bool skipEmptyLines)
         {
             ProcessRedirectAsync.Init();
 
@@ -31,7 +30,8 @@ namespace forp
                     tasks: ProcessesToStart.Select(
                         async (procToRun) =>
                             {
-                                await RunOneProcess(procToRun.commandline, procToRun.prefix, writer, cancel).ConfigureAwait(false);
+                                await RunOneProcess(procToRun.commandline, procToRun.prefix, writer, cancel, skipEmptyLines)
+                                            .ConfigureAwait(false);
                                 //exitcodeWriter.WriteLine($"{rc}\t{procToRun}");
                             }),
                     MaxParallel: maxParallel,
@@ -42,13 +42,17 @@ namespace forp
                 DoUntilTaskFinished(procsTask, TimeSpan.FromSeconds(1), () => WriteStatusLine(status, procs, currProcess));
             }
         }
-        static async Task RunOneProcess(string commandline, string prefix, TextWriter writer, CancellationToken cancel)
+        static async Task RunOneProcess(string commandline, string prefix, TextWriter writer, CancellationToken cancel, bool skipEmptyLines)
         {
             log.dbg("starting: [{0}]", commandline);
 
             await ProcessRedirectAsync.Start(commandline, onProcessOutput: (kind, line) =>
             {
-                //log.dbg("out: {0}", line);
+                if ( skipEmptyLines && String.IsNullOrWhiteSpace(line) )
+                {
+                    return;
+                }
+
                 if (String.IsNullOrEmpty(prefix))
                 {
                     writer.WriteLine(line);

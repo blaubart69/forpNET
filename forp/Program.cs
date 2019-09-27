@@ -63,7 +63,7 @@ namespace forp
                 }
                 else
                 {
-                    forp.Run(commandlines2Exec, opts.maxParallel);
+                    forp.Run(commandlines2Exec, opts.maxParallel, opts.skipEmptyLines);
                 }
             }
 
