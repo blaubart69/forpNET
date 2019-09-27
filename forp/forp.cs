@@ -75,7 +75,7 @@ namespace forp
         }
         static void HandleKeys(CancellationTokenSource cancelSource, TextWriter outWriter)
         {
-            Console.Error.WriteLine("press 'q' to quit. 'f' to flush output file");
+            Console.Error.WriteLine("press 'q' to quit. 'f' to flush forp.out.txt");
             while (!cancelSource.IsCancellationRequested)
             {
                 var key = Console.ReadKey(intercept: true);

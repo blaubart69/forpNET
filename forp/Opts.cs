@@ -44,7 +44,8 @@ namespace forp
             {
                 Console.WriteLine(
                       "\nusage: forp.exe [OPTIONS] -- {exe} [options mixed with %1, %2, ...]"
-                    + "\n  Each line from the input is parsed with CommandLineToArgv() to produce %1, %2, ..."
+                    + "\n  - each line from the input is parsed with CommandLineToArgv() to produce %1, %2, ..."
+                    + "\n  - stdout and stderr from all executed processes is collected in the file: forp.out.txt"
                     + "\n\nOptions:");
                 Spi.BeeOpts.PrintOptions(cmdOpts);
                 return false;
