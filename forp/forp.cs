@@ -48,7 +48,7 @@ namespace forp
 
             await ProcessRedirectAsync.Start(commandline, onProcessOutput: (kind, line) =>
             {
-                log.dbg("out: {0}", line);
+                //log.dbg("out: {0}", line);
                 if (String.IsNullOrEmpty(prefix))
                 {
                     writer.WriteLine(line);

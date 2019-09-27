@@ -1,0 +1,46 @@
+Samples:
+--------
+
+1) Take every directory in current dir (c:\temp) and pass it to forp.exe to execute a "dir" command for each directory.
+
+  C:\temp>dir /ad /b | forp -c dir %1
+
+  + You can also ommit %1 here.
+    When only ONE command is given, forp will append ALL the input tokens.
+    Is like an implicit %*.
+  + -c ... execute the dir command with "%COMSPEC% /C"
+  
+  Executing this with the "-n/--dryrun" option will give you:
+  
+	C:\temp>dir /ad /b | forp -n -c dir %1
+	2019-09-27 11:10:45 I C:\WINDOWS\system32\cmd.exe /c dir .idea
+	2019-09-27 11:10:45 I C:\WINDOWS\system32\cmd.exe /c dir CashManBA
+	2019-09-27 11:10:45 I C:\WINDOWS\system32\cmd.exe /c dir EuDbSrv_notUsing
+	2019-09-27 11:10:45 I C:\WINDOWS\system32\cmd.exe /c dir findpnet
+	2019-09-27 11:10:45 I C:\WINDOWS\system32\cmd.exe /c dir GitblitCert
+	2019-09-27 11:10:45 I C:\WINDOWS\system32\cmd.exe /c dir NtQueryDirectoryFile
+	2019-09-27 11:10:45 I C:\WINDOWS\system32\cmd.exe /c dir recon
+	2019-09-27 11:10:45 I C:\WINDOWS\system32\cmd.exe /c dir vss2git
+	2019-09-27 11:10:45 I C:\WINDOWS\system32\cmd.exe /c dir WAMtest
+	2019-09-27 11:10:45 I C:\WINDOWS\system32\cmd.exe /c dir WAM_subst
+   
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+   
+2) copy a file FROM many machines to a local dir.
+   local logfiles will get the name "{hostname}.txt"
+
+  inputfile: machines.txt. Contains one hostname per line.
+
+  C:\>forp -f machines.txt -c -- copy \\%1\c$\log\logfile.txt .\logs\%1.txt
+
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+3) find explorer.exe processes running on machines.
+
+  forp -f hostnames.txt tasklist /NH /S %1 /FI "imagename eq explorer.exe"
+  
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+
+
+

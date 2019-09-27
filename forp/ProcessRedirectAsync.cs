@@ -106,8 +106,10 @@ namespace Spi
             out NamedPipeServerStream ReadPipe,
             out NamedPipeClientStream WritePipe)
         {
+            
             //string pipename = $"\\\\.\\Pipe\\forpNet.{g_currProcId}.{Interlocked.Increment(ref g_PipeSerialNumber)}";
             string pipename = $"forpNet.{g_currProcId}.{Interlocked.Increment(ref g_PipeSerialNumber)}";
+            log.dbg("creating named pipe [{0}]", pipename);
 
             int nSize = 4096;
             ReadPipe = new NamedPipeServerStream(
