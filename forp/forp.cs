@@ -50,7 +50,7 @@ namespace forp
 
             uint? currProcID = null;
 
-            await ProcessRedirectAsync.Start(
+            uint? ExitCode = await ProcessRedirectAsync.Start(
                 commandline, 
                 onProcessCreated: (uint procId) => 
                 {
@@ -76,13 +76,14 @@ namespace forp
                         writer.WriteLine(prefix + "\t" + line);
                     }
                 });
+
             if ( currProcID.HasValue)
             {
                 lock (procIDs)
                 {
                     procIDs.Remove(currProcID.Value);
                 }
-                log.dbg("proc ended: {0}", currProcID.Value);
+                log.dbg("process ended: ID: {0}, ExitCode: {1}", currProcID.Value, ExitCode);
             }
             else
             {
