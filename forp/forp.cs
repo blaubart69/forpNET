@@ -31,7 +31,7 @@ namespace forp
 
             using (CancellationTokenSource cts = new CancellationTokenSource())
             using (TextWriter writer         = TextWriter.Synchronized(new StreamWriter(@".\forp.out.txt",      append: false, encoding: Encoding.UTF8)))
-            //using (TextWriter exitcodeWriter = TextWriter.Synchronized(new StreamWriter(@".\forp.ExitCode.txt", append: false, encoding: Encoding.UTF8)))
+            using (TextWriter exitcodeWriter = TextWriter.Synchronized(new StreamWriter(@".\forp.ExitCode.txt", append: false, encoding: Encoding.UTF8)))
             {
                 log.dbg($"starting with maxParallel: {maxParallel}");
                 var cancel = cts.Token;
@@ -41,9 +41,8 @@ namespace forp
                     tasks: ProcessesToStart.Select(
                         async (procToRun) =>
                             {
-                                await RunOneProcess(procToRun.commandline, procToRun.prefix, writer, cancel, skipEmptyLines, runningProcIDs)
-                                            .ConfigureAwait(false);
-                                //exitcodeWriter.WriteLine($"{rc}\t{procToRun}");
+                                uint ExitCode = await RunOneProcess(procToRun.commandline, procToRun.prefix, writer, cancel, skipEmptyLines, runningProcIDs).ConfigureAwait(false);
+                                exitcodeWriter.WriteLine($"{ExitCode}\t{procToRun.commandline}");
                             }),
                     MaxParallel: maxParallel,
                     cancel: cts.Token);
@@ -59,13 +58,13 @@ namespace forp
                 }
             }
         }
-        static async Task RunOneProcess(string commandline, string prefix, TextWriter writer, CancellationToken cancel, bool skipEmptyLines, ICollection<uint> procIDs)
+        static async Task<uint> RunOneProcess(string commandline, string prefix, TextWriter writer, CancellationToken cancel, bool skipEmptyLines, ICollection<uint> procIDs)
         {
             log.dbg("starting: [{0}]", commandline);
 
             uint? currProcID = null;
 
-            uint? ExitCode = await ProcessRedirectAsync.Start(
+            uint ExitCode = await ProcessRedirectAsync.Start(
                 commandline, 
                 onProcessCreated: (uint procId) => 
                 {
@@ -104,6 +103,8 @@ namespace forp
             {
                 log.err("proc has no ID set. komisch...?");
             }
+
+            return ExitCode;
         }
         
         static void HandleKeys(CancellationTokenSource cancelSource, TextWriter outWriter, ICollection<uint> runningProcIDs)

@@ -36,7 +36,7 @@ namespace Spi
                 g_currProcId = Process.GetCurrentProcess().Id;
             }
         }
-        public static async Task<uint?> Start(string commandline, OnProcessOutput onProcessOutput, OnProcessCreated onProcessCreated)
+        public static async Task<uint> Start(string commandline, OnProcessOutput onProcessOutput, OnProcessCreated onProcessCreated)
         {
             var pi = new PROCESS_INFORMATION();
             try
@@ -95,37 +95,24 @@ namespace Spi
 
                     await Task.WhenAll(stdout, stderr);
 
-                    uint? exitCode;
-                    if ( GetExitCodeProcess(pi.hProcess, out uint tmpExitCode))
-                    {
-                        exitCode = tmpExitCode;
-                    }
-                    else
+                    uint exitCode;
+                    if ( !GetExitCodeProcess(pi.hProcess, out exitCode))
                     {
                         const UInt32 WAIT_TIMEOUT = 0x00000102;
-                        exitCode = null;
                         UInt32 rc;
                         while ( (rc=WaitForSingleObject(pi.hProcess, 1000)) == WAIT_TIMEOUT)
                         {
                             log.err($"waiting for process {pi.dwProcessId} to become signaled. WaitForSingleObject()");
                         }
-                        if (GetExitCodeProcess(pi.hProcess, out tmpExitCode))
-                        {
-                            exitCode = tmpExitCode;
-                        }
-                        else
+                        if (!GetExitCodeProcess(pi.hProcess, out exitCode))
                         {
                             var lasterr = new Win32Exception();
-                            log.err($"still no ExitCode after WaitForSingleObject() on process handle. GetExitCodeProcess() returned: {lasterr.NativeErrorCode}");
+                            throw new Exception($"still no ExitCode after WaitForSingleObject() on process handle. GetExitCodeProcess() returned: {lasterr.NativeErrorCode}");
                         }
                     }
 
                     return exitCode;
                 }
-            }
-            catch (Exception ex)
-            {
-                throw ex;
             }
             finally
             {
@@ -191,6 +178,8 @@ namespace Spi
         [DllImport("kernel32.dll", SetLastError = true)]
         [return: MarshalAs(UnmanagedType.Bool)]
         static extern bool GetExitCodeProcess(IntPtr hProcess, out uint lpExitCode);
+        [DllImport("kernel32.dll", SetLastError = true)]
+        static extern UInt32 WaitForSingleObject(IntPtr hHandle, UInt32 dwMilliseconds);
         #endregion
     }
 
