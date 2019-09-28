@@ -37,7 +37,11 @@ namespace forp
             {
                 log.dbg("successfully set MaxThreads to {0}/{1}", minwork, minio);
             }
-            
+            //
+            // must be placed here. afterwards commandtemplate get's expanded
+            //
+            bool appendAllInputTokens = commandTemplate.Count == 1;
+
             ExpandCommand(opts, commandTemplate);
             log.dbgKeyVal("CommandTemplate", String.Join(" ", commandTemplate));
 
@@ -54,7 +58,7 @@ namespace forp
 
             using (inputstream)
             {
-                bool appendAllInputTokens = commandTemplate.Count == 1;
+                
                 IEnumerable<ProcCtx> commandlines2Exec = ContructCommandline(opts.printPrefix, commandTemplate, inputstream, appendAllInputTokens);
 
                 if (opts.firstOnly)
@@ -71,7 +75,7 @@ namespace forp
                 }
                 else
                 {
-                    forp.Run(commandlines2Exec, opts.maxParallel, opts.skipEmptyLines);
+                    forp.Run(commandlines2Exec, opts.maxParallel, opts.skipEmptyLines, opts.printStatusLine);
                 }
             }
 

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Management;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -14,7 +15,7 @@ namespace forp
     static class forp
     {
         static Log log = Log.GetLogger();
-        public static void Run(IEnumerable<ProcCtx> ProcessesToStart, int maxParallel, bool skipEmptyLines)
+        public static void Run(IEnumerable<ProcCtx> ProcessesToStart, int maxParallel, bool skipEmptyLines, bool printStatusLine)
         {
             ProcessRedirectAsync.Init();
 
@@ -38,10 +39,16 @@ namespace forp
                             }),
                     MaxParallel: maxParallel,
                     cancel: cts.Token);
-
-                var status = new StatusLineWriter();
-                var currProcess = Process.GetCurrentProcess();
-                DoUntilTaskFinished(procsTask, TimeSpan.FromSeconds(1), () => WriteStatusLine(status, procs, currProcess));
+                if (printStatusLine)
+                {
+                    var status = new StatusLineWriter();
+                    var currProcess = Process.GetCurrentProcess();
+                    Misc.DoUntilTaskFinished(procsTask, TimeSpan.FromSeconds(1), () => WriteStatusLine(status, procs, currProcess));
+                }
+                else
+                {
+                    procsTask.Wait();
+                }
             }
         }
         static async Task RunOneProcess(string commandline, string prefix, TextWriter writer, CancellationToken cancel, bool skipEmptyLines, ICollection<uint> procIDs)
@@ -87,18 +94,10 @@ namespace forp
             }
             else
             {
-                log.dbg("proc has no ID set. komisch...?");
+                log.err("proc has no ID set. komisch...?");
             }
-            
         }
-        static void DoUntilTaskFinished(Task task, TimeSpan timeout, Action doEvery)
-        {
-            while (!task.Wait(timeout))
-            {
-                doEvery.Invoke();
-            }
-            doEvery.Invoke();
-        }
+        
         static void HandleKeys(CancellationTokenSource cancelSource, TextWriter outWriter, ICollection<uint> runningProcIDs)
         {
             Console.WriteLine("press 'q' to quit. 'h' for more keys.");
@@ -114,7 +113,7 @@ namespace forp
                         outWriter.Flush(); 
                         break;
                     case 'p':
-                        PrintProcessIDs(runningProcIDs);
+                        PrintProcessInfo(runningProcIDs);
                         break;
                     case 'h':
                         ShowKeyHelp();
@@ -130,15 +129,42 @@ namespace forp
                 + "\n  'f' to flush forp.out.txt"
                 + "\n  'p' to show running procIDs");
         }
-        private static void PrintProcessIDs(ICollection<uint> runningProcIDs)
+        private static void PrintProcessInfo(ICollection<uint> runningProcIDs)
         {
-            string procIds;
-            int count;
-            procIds = String.Join(",", runningProcIDs);
-            count = runningProcIDs.Count;
-            Console.Error.WriteLine($"\nprocess IDs: ({count}) {procIds}");
-        }
+            try
+            {
+                uint[] tmpProcIDs = runningProcIDs.ToArray();
+                lock (runningProcIDs)
+                {
+                    tmpProcIDs = runningProcIDs.ToArray();
+                }
 
+                string clause = String.Join(" OR ", tmpProcIDs.Select(id => $"ProcessId={id}"));
+
+                var now = DateTime.Now;
+
+                using (ManagementObjectSearcher searcher = new ManagementObjectSearcher("SELECT ProcessId,CommandLine,CreationDate FROM Win32_Process WHERE " + clause))
+                using (ManagementObjectCollection objects = searcher.Get())
+                {
+                    foreach (var obj in objects)
+                    {
+                        var o = obj as ManagementBaseObject;
+                        if (o != null)
+                        {
+                            string id = o["ProcessId"]?.ToString();
+                            string commandline = o["CommandLine"]?.ToString();
+                            DateTime started = ManagementDateTimeConverter.ToDateTime(o["CreationDate"].ToString());
+                            TimeSpan duration = new TimeSpan(now.Ticks - started.Ticks);
+                            Console.Error.WriteLine($"{id}\t{duration}\t[{commandline}]");
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                log.exception(ex);
+            }
+        }
         static void WriteStatusLine(StatusLineWriter statusLine, MaxTasks processes, Process currProcess)
         {
             currProcess.Refresh();

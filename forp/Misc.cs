@@ -31,5 +31,13 @@ namespace forp
                 onLine(line);
             }
         }
+        public static void DoUntilTaskFinished(Task task, TimeSpan timeout, Action doEvery)
+        {
+            while (!task.Wait(timeout))
+            {
+                doEvery.Invoke();
+            }
+            doEvery.Invoke();
+        }
     }
 }
