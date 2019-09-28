@@ -52,6 +52,12 @@ namespace Spi
             if (SkipLog(LEVEL.DEBUG)) return;
             write(LEVEL.DEBUG, 'D', format, arg1, arg2);
         }
+        public void dbg(string format, object arg1, object arg2, object arg3, object arg4)
+        {
+            if (SkipLog(LEVEL.DEBUG)) return;
+            write(LEVEL.DEBUG, 'D', format, arg1, arg2, arg3, arg4);
+        }
+
         public void inf(string format, params object[] args) { write(LEVEL.INFO, 'I', format, args); }
         public void wrn(string format, params object[] args) { write(LEVEL.WARNING, 'W', format, args); }
         public void err(string format, params object[] args) { write(LEVEL.ERROR, 'E', format, args); }

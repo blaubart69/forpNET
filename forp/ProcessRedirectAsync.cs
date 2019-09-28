@@ -13,6 +13,11 @@ using forp;
 
 namespace Spi
 {
+    public enum KINDOFOUTPUT
+    {
+        STDOUT,
+        STDERR
+    }
     public class ProcessRedirectAsync
     {
         static Log log = Log.GetLogger();
@@ -21,6 +26,7 @@ namespace Spi
         private static int  g_currProcId = 0;
 
         public delegate void OnProcessOutput(KINDOFOUTPUT kind, string line);
+       
         public static void Init()
         {
             if (g_currProcId == 0)
