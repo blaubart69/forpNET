@@ -4,7 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading;
-
+using System.Threading.Tasks;
 using Spi;
 using static forp.forp;
 
@@ -46,14 +46,23 @@ namespace forp
             log.dbgKeyVal("CommandTemplate", String.Join(" ", commandTemplate));
 
             TextReader inputstream;
+            Func<long> jobCount;
             if (String.IsNullOrEmpty(opts.inputfilename))
             {
+                jobCount = null;
                 inputstream = Console.In;
                 log.dbg("reading from stdin");
             }
             else
             {
                 inputstream = new StreamReader(opts.inputfilename);
+                jobCount = () =>
+                {
+                    using (var linereader = new StreamReader(new FileStream(opts.inputfilename, FileMode.Open, FileAccess.Read, FileShare.Read, 4096, FileOptions.SequentialScan)))
+                    {
+                        return Misc.ReadLines(linereader).LongCount();
+                    }
+                };
             }
 
             using (inputstream)
@@ -75,7 +84,7 @@ namespace forp
                 }
                 else
                 {
-                    forp.Run(commandlines2Exec, opts.maxParallel, opts.skipEmptyLines, opts.printStatusLine);
+                    forp.Run(commandlines2Exec, opts.maxParallel, opts.skipEmptyLines, opts.printStatusLine, jobCount);
                 }
             }
 
@@ -100,7 +109,7 @@ namespace forp
 
         private static IEnumerable<ProcCtx> ContructCommandline(bool printPrefix, List<string> commandTemplate, TextReader inputstream, bool appendAllInputTokens)
         {
-            return ReadLines(inputstream)
+            return Misc.ReadLines(inputstream)
                 .Select(inputlines => Native.CommandLineToArgv(inputlines))
                 .Select(inputArgs =>
                 {
@@ -148,13 +157,6 @@ namespace forp
                 return token;
             }
         }
-        static IEnumerable<string> ReadLines(TextReader reader)
-        {
-            string line;
-            while ((line = reader.ReadLine()) != null)
-            {
-                yield return line;
-            }
-        }
+        
     }
 }

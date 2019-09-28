@@ -12,13 +12,21 @@ using Spi;
 
 namespace forp
 {
+    class Stats
+    {
+        public long? AllItems;
+    }
     static class forp
     {
         static Log log = Log.GetLogger();
-        public static void Run(IEnumerable<ProcCtx> ProcessesToStart, int maxParallel, bool skipEmptyLines, bool printStatusLine)
+        public static void Run(IEnumerable<ProcCtx> ProcessesToStart, int maxParallel, bool skipEmptyLines, bool printStatusLine, Func<long> numberJobs)
         {
             ProcessRedirectAsync.Init();
-
+            Stats stats = new Stats();
+            if (numberJobs != null)
+            {
+                Task.Run(() => stats.AllItems = numberJobs());
+            }
             ICollection<uint> runningProcIDs = new HashSet<uint>();
 
             using (CancellationTokenSource cts = new CancellationTokenSource())
@@ -43,7 +51,7 @@ namespace forp
                 {
                     var status = new StatusLineWriter();
                     var currProcess = Process.GetCurrentProcess();
-                    Misc.DoUntilTaskFinished(procsTask, TimeSpan.FromSeconds(1), () => WriteStatusLine(status, procs, currProcess));
+                    Misc.DoUntilTaskFinished(procsTask, TimeSpan.FromSeconds(1), () => WriteStatusLine(status, procs, currProcess, stats));
                 }
                 else
                 {
@@ -84,7 +92,7 @@ namespace forp
                     }
                 });
 
-            if ( currProcID.HasValue)
+            if (currProcID.HasValue)
             {
                 lock (procIDs)
                 {
@@ -133,7 +141,7 @@ namespace forp
         {
             try
             {
-                uint[] tmpProcIDs = runningProcIDs.ToArray();
+                uint[] tmpProcIDs;
                 lock (runningProcIDs)
                 {
                     tmpProcIDs = runningProcIDs.ToArray();
@@ -165,7 +173,7 @@ namespace forp
                 log.exception(ex);
             }
         }
-        static void WriteStatusLine(StatusLineWriter statusLine, MaxTasks processes, Process currProcess)
+        static void WriteStatusLine(StatusLineWriter statusLine, MaxTasks processes, Process currProcess, Stats stats)
         {
             currProcess.Refresh();
 
@@ -174,9 +182,23 @@ namespace forp
                     .GroupBy(keySelector: t => t.ThreadState)
                     .Select(grp => $"{grp.Key.ToString()} ({(grp.Key == System.Diagnostics.ThreadState.Running ? grp.Count()-1 : grp.Count())})"));
 
-            statusLine.Write($"running/done\t{processes.Running}/{processes.Done}"
-                + $"\tthreads: {currProcess.Threads.Count}"
-                + $"\tthreadStates: {statsThreads}");
+            string all;
+            string finished;
+            if ( stats.AllItems.HasValue )
+            {
+                all = stats.AllItems.ToString();
+                float ffinished = (float)processes.Done / (float)stats.AllItems.Value;
+                finished = ffinished.ToString("P");
+            }
+            else
+            {
+                all = "?";
+                finished = "?";
+            }
+
+            statusLine.Write($"running/done/all/finished\t{processes.Running}/{processes.Done}/{all}/{finished}"
+                //+ $"\tthreads: {currProcess.Threads.Count}"
+                + $"\t(forp thread states: {statsThreads})");
         }
     }
 }

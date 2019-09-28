@@ -191,8 +191,6 @@ namespace Spi
         [DllImport("kernel32.dll", SetLastError = true)]
         [return: MarshalAs(UnmanagedType.Bool)]
         static extern bool GetExitCodeProcess(IntPtr hProcess, out uint lpExitCode);
-        [DllImport("kernel32.dll", SetLastError = true)]
-        static extern UInt32 WaitForSingleObject(IntPtr hHandle, UInt32 dwMilliseconds);
         #endregion
     }
 
