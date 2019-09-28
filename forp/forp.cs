@@ -134,11 +134,8 @@ namespace forp
         {
             string procIds;
             int count;
-            lock (runningProcIDs)
-            {
-                procIds = String.Join(",", runningProcIDs);
-                count = runningProcIDs.Count;
-            }
+            procIds = String.Join(",", runningProcIDs);
+            count = runningProcIDs.Count;
             Console.Error.WriteLine($"\nprocess IDs: ({count}) {procIds}");
         }
 
