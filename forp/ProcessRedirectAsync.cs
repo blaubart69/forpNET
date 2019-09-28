@@ -26,6 +26,7 @@ namespace Spi
         private static int  g_currProcId = 0;
 
         public delegate void OnProcessOutput(KINDOFOUTPUT kind, string line);
+        public delegate void OnProcessCreated(uint procId);
        
         public static void Init()
         {
@@ -34,7 +35,7 @@ namespace Spi
                 g_currProcId = Process.GetCurrentProcess().Id;
             }
         }
-        public static async Task Start(string commandline, OnProcessOutput onProcessOutput)
+        public static async Task Start(string commandline, OnProcessOutput onProcessOutput, OnProcessCreated onProcessCreated)
         {
             var pi = new PROCESS_INFORMATION();
             try
@@ -79,6 +80,7 @@ namespace Spi
                     {
                         CloseHandle(pi.hThread);
                     }
+                    onProcessCreated?.Invoke(pi.dwProcessId);
                     //
                     // 2019-09-22 Spindi himself
                     //  this Close() is very importante.
