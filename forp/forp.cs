@@ -15,11 +15,12 @@ namespace forp
     class Stats
     {
         public long? AllItems;
+        public long TotalTicksProcesses = 0;
     }
     static class forp
     {
         static Log log = Log.GetLogger();
-        public static void Run(IEnumerable<ProcCtx> ProcessesToStart, int maxParallel, bool skipEmptyLines, bool printStatusLine, Func<long> numberJobs)
+        public static Stats Run(IEnumerable<ProcCtx> ProcessesToStart, int maxParallel, bool skipEmptyLines, bool printStatusLine, Func<long> numberJobs)
         {
             ProcessRedirectAsync.Init();
             Stats stats = new Stats();
@@ -41,7 +42,9 @@ namespace forp
                     tasks: ProcessesToStart.Select(
                         async (procToRun) =>
                             {
+                                long procStart = DateTime.Now.Ticks;
                                 uint ExitCode = await RunOneProcess(procToRun.commandline, procToRun.prefix, writer, cancel, skipEmptyLines, runningProcIDs).ConfigureAwait(false);
+                                Interlocked.Add(ref stats.TotalTicksProcesses, (DateTime.Now.Ticks - procStart));
                                 exitcodeWriter.WriteLine($"{ExitCode}\t{procToRun.commandline}");
                             }),
                     MaxParallel: maxParallel,
@@ -58,6 +61,7 @@ namespace forp
                     procsTask.Wait();
                 }
             }
+            return stats;
         }
         static async Task<uint> RunOneProcess(string commandline, string prefix, TextWriter writer, CancellationToken cancel, bool skipEmptyLines, ICollection<uint> procIDs)
         {

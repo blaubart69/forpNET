@@ -85,9 +85,10 @@ namespace forp
                 else
                 {
                     long start = DateTime.Now.Ticks;
-                    forp.Run(commandlines2Exec, opts.maxParallel, opts.skipEmptyLines, opts.printStatusLine, jobCount);
+                    Stats stats = forp.Run(commandlines2Exec, opts.maxParallel, opts.skipEmptyLines, opts.printStatusLine, jobCount);
                     TimeSpan forpDuration = new TimeSpan(DateTime.Now.Ticks - start);
-                    log.inf($"forp duration: {forpDuration}");
+                    log.inf($"forp duration:        {forpDuration}");
+                    log.inf($"total time processes: {new TimeSpan(ticks: stats.TotalTicksProcesses)}");
                 }
             }
 
