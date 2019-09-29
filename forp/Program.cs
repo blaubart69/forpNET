@@ -68,7 +68,7 @@ namespace forp
             using (inputstream)
             {
                 
-                IEnumerable<ProcCtx> commandlines2Exec = ContructCommandline(opts.printPrefix, commandTemplate, inputstream, appendAllInputTokens);
+                IEnumerable<ProcCtx> commandlines2Exec = ConstructCommandline(opts.printPrefix, commandTemplate, inputstream, appendAllInputTokens);
 
                 if (opts.firstOnly)
                 {
@@ -84,7 +84,10 @@ namespace forp
                 }
                 else
                 {
+                    long start = DateTime.Now.Ticks;
                     forp.Run(commandlines2Exec, opts.maxParallel, opts.skipEmptyLines, opts.printStatusLine, jobCount);
+                    TimeSpan forpDuration = new TimeSpan(DateTime.Now.Ticks - start);
+                    log.inf($"forp duration: {forpDuration}");
                 }
             }
 
@@ -107,7 +110,7 @@ namespace forp
             }
         }
 
-        private static IEnumerable<ProcCtx> ContructCommandline(bool printPrefix, List<string> commandTemplate, TextReader inputstream, bool appendAllInputTokens)
+        private static IEnumerable<ProcCtx> ConstructCommandline(bool printPrefix, List<string> commandTemplate, TextReader inputstream, bool appendAllInputTokens)
         {
             return Misc.ReadLines(inputstream)
                 .Select(inputlines => Native.CommandLineToArgv(inputlines))

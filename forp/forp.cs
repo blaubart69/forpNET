@@ -50,7 +50,8 @@ namespace forp
                 {
                     var status = new StatusLineWriter();
                     var currProcess = Process.GetCurrentProcess();
-                    Misc.DoUntilTaskFinished(procsTask, TimeSpan.FromSeconds(1), () => WriteStatusLine(status, procs, currProcess, stats));
+                    Misc.DoUntilTaskFinished(procsTask, TimeSpan.FromSeconds(2), () => WriteStatusLine(status, procs, currProcess, stats));
+                    Console.Error.WriteLine();
                 }
                 else
                 {
