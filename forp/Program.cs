@@ -29,9 +29,16 @@ namespace forp
                 Log.SetLevel(Log.LEVEL.DEBUG);
             }
             Log log = Log.GetLogger();
-            bool appendAllInputTokens = commandTemplate.Count == 1;
-            ExpandCommand(opts, commandTemplate);
 
+            ThreadPool.GetMaxThreads(out int maxwork, out int maxio);
+            ThreadPool.GetMinThreads(out int minwork, out int minio);
+            log.dbg("minWork: {0}, minIO: {1}, maxWork: {2}, maxIO: {3}", minwork, minio, maxwork, maxio);
+            if ( ThreadPool.SetMaxThreads(minwork, minio))
+            {
+                log.dbg("successfully set MaxThreads to {0}/{1}", minwork, minio);
+            }
+            
+            ExpandCommand(opts, commandTemplate);
             log.dbgKeyVal("CommandTemplate", String.Join(" ", commandTemplate));
 
             TextReader inputstream;
@@ -47,6 +54,7 @@ namespace forp
 
             using (inputstream)
             {
+                bool appendAllInputTokens = commandTemplate.Count == 1;
                 IEnumerable<ProcCtx> commandlines2Exec = ContructCommandline(opts.printPrefix, commandTemplate, inputstream, appendAllInputTokens);
 
                 if (opts.firstOnly)

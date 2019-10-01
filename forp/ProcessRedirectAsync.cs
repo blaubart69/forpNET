@@ -1,21 +1,24 @@
-﻿using Microsoft.Win32.SafeHandles;
-using System;
-using System.Collections.Generic;
+﻿using System;
 using System.Diagnostics;
 using System.IO;
-using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using System.IO.Pipes;
 using System.ComponentModel;
-using forp;
 using System.Security;
-using System.Runtime.ConstrainedExecution;
+
+using forp;
+using Microsoft.Win32.SafeHandles;
 
 namespace Spi
 {
+    public enum KINDOFOUTPUT
+    {
+        STDOUT,
+        STDERR
+    }
     public class ProcessRedirectAsync
     {
         static Log log = Log.GetLogger();
@@ -24,6 +27,8 @@ namespace Spi
         private static int  g_currProcId = 0;
 
         public delegate void OnProcessOutput(KINDOFOUTPUT kind, string line);
+        public delegate void OnProcessCreated(uint procId);
+       
         public static void Init()
         {
             if (g_currProcId == 0)
@@ -31,7 +36,7 @@ namespace Spi
                 g_currProcId = Process.GetCurrentProcess().Id;
             }
         }
-        public static async Task Start(string commandline, OnProcessOutput onProcessOutput)
+        public static async Task<uint?> Start(string commandline, OnProcessOutput onProcessOutput, OnProcessCreated onProcessCreated)
         {
             var pi = new PROCESS_INFORMATION();
             try
@@ -76,6 +81,7 @@ namespace Spi
                     {
                         CloseHandle(pi.hThread);
                     }
+                    onProcessCreated?.Invoke(pi.dwProcessId);
                     //
                     // 2019-09-22 Spindi himself
                     //  this Close() is very importante.
@@ -88,6 +94,33 @@ namespace Spi
                     Task stderr = Misc.ReadLinesAsync(new StreamReader(readerErr), (line) => onProcessOutput(KINDOFOUTPUT.STDERR, line));
 
                     await Task.WhenAll(stdout, stderr);
+
+                    uint? exitCode;
+                    if ( GetExitCodeProcess(pi.hProcess, out uint tmpExitCode))
+                    {
+                        exitCode = tmpExitCode;
+                    }
+                    else
+                    {
+                        const UInt32 WAIT_TIMEOUT = 0x00000102;
+                        exitCode = null;
+                        UInt32 rc;
+                        while ( (rc=WaitForSingleObject(pi.hProcess, 1000)) == WAIT_TIMEOUT)
+                        {
+                            log.err($"waiting for process {pi.dwProcessId} to become signaled. WaitForSingleObject()");
+                        }
+                        if (GetExitCodeProcess(pi.hProcess, out tmpExitCode))
+                        {
+                            exitCode = tmpExitCode;
+                        }
+                        else
+                        {
+                            var lasterr = new Win32Exception();
+                            log.err($"still no ExitCode after WaitForSingleObject() on process handle. GetExitCodeProcess() returned: {lasterr.NativeErrorCode}");
+                        }
+                    }
+
+                    return exitCode;
                 }
             }
             catch (Exception ex)
@@ -155,6 +188,11 @@ namespace Spi
 
         [DllImport("kernel32.dll", SetLastError = true)]
         static extern IntPtr GetStdHandle(int whichHandle);
+        [DllImport("kernel32.dll", SetLastError = true)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        static extern bool GetExitCodeProcess(IntPtr hProcess, out uint lpExitCode);
+        [DllImport("kernel32.dll", SetLastError = true)]
+        static extern UInt32 WaitForSingleObject(IntPtr hHandle, UInt32 dwMilliseconds);
         #endregion
     }
 
