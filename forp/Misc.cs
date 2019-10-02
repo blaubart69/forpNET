@@ -31,5 +31,21 @@ namespace forp
                 onLine(line);
             }
         }
+        public static IEnumerable<string> ReadLines(TextReader reader)
+        {
+            string line;
+            while ((line = reader.ReadLine()) != null)
+            {
+                yield return line;
+            }
+        }
+        public static void DoUntilTaskFinished(Task task, TimeSpan timeout, Action doEvery)
+        {
+            while (!task.Wait(timeout))
+            {
+                doEvery.Invoke();
+            }
+            doEvery.Invoke();
+        }
     }
 }

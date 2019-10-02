@@ -4,7 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading;
-
+using System.Threading.Tasks;
 using Spi;
 using static forp.forp;
 
@@ -37,25 +37,38 @@ namespace forp
             {
                 log.dbg("successfully set MaxThreads to {0}/{1}", minwork, minio);
             }
-            
+            //
+            // must be placed here. afterwards commandtemplate get's expanded
+            //
+            bool appendAllInputTokens = commandTemplate.Count == 1;
+
             ExpandCommand(opts, commandTemplate);
             log.dbgKeyVal("CommandTemplate", String.Join(" ", commandTemplate));
 
             TextReader inputstream;
+            Func<long> jobCount;
             if (String.IsNullOrEmpty(opts.inputfilename))
             {
+                jobCount = null;
                 inputstream = Console.In;
                 log.dbg("reading from stdin");
             }
             else
             {
                 inputstream = new StreamReader(opts.inputfilename);
+                jobCount = () =>
+                {
+                    using (var linereader = new StreamReader(new FileStream(opts.inputfilename, FileMode.Open, FileAccess.Read, FileShare.Read, 4096, FileOptions.SequentialScan)))
+                    {
+                        return Misc.ReadLines(linereader).LongCount();
+                    }
+                };
             }
 
             using (inputstream)
             {
-                bool appendAllInputTokens = commandTemplate.Count == 1;
-                IEnumerable<ProcCtx> commandlines2Exec = ContructCommandline(opts.printPrefix, commandTemplate, inputstream, appendAllInputTokens);
+                
+                IEnumerable<ProcCtx> commandlines2Exec = ConstructCommandline(opts.printPrefix, commandTemplate, inputstream, appendAllInputTokens);
 
                 if (opts.firstOnly)
                 {
@@ -71,7 +84,11 @@ namespace forp
                 }
                 else
                 {
-                    forp.Run(commandlines2Exec, opts.maxParallel, opts.skipEmptyLines);
+                    long start = DateTime.Now.Ticks;
+                    Stats stats = forp.Run(commandlines2Exec, opts.maxParallel, opts.skipEmptyLines, opts.printStatusLine, jobCount);
+                    TimeSpan forpDuration = new TimeSpan(DateTime.Now.Ticks - start);
+                    log.inf($"forp duration:        {forpDuration}");
+                    log.inf($"total time processes: {new TimeSpan(ticks: stats.TotalTicksProcesses)}");
                 }
             }
 
@@ -94,9 +111,9 @@ namespace forp
             }
         }
 
-        private static IEnumerable<ProcCtx> ContructCommandline(bool printPrefix, List<string> commandTemplate, TextReader inputstream, bool appendAllInputTokens)
+        private static IEnumerable<ProcCtx> ConstructCommandline(bool printPrefix, List<string> commandTemplate, TextReader inputstream, bool appendAllInputTokens)
         {
-            return ReadLines(inputstream)
+            return Misc.ReadLines(inputstream)
                 .Select(inputlines => Native.CommandLineToArgv(inputlines))
                 .Select(inputArgs =>
                 {
@@ -144,13 +161,6 @@ namespace forp
                 return token;
             }
         }
-        static IEnumerable<string> ReadLines(TextReader reader)
-        {
-            string line;
-            while ((line = reader.ReadLine()) != null)
-            {
-                yield return line;
-            }
-        }
+        
     }
 }
