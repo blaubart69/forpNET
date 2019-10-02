@@ -48,7 +48,9 @@ namespace forp
                       "\nusage: forp.exe [OPTIONS] -- {exe} [options mixed with %1, %2, ...]"
                     + "\n  + if no inputfile is given. read input from stdin"
                     + "\n  + each line from the input is parsed with CommandLineToArgv() to produce %1, %2, ..."
-                    + "\n  + stdout and stderr from all executed processes is collected in the file: forp.out.txt"
+                    + "\n  generated files:"
+                    + "\n    1, forp.out.txt ........ stdout and stderr from all executed processes"
+                    + "\n    2, forp.ExitCode.txt ... exitcode of each executed process. {rc}TAB{commandline}"
                     + "\n\nOptions:");
                 Spi.BeeOpts.PrintOptions(cmdOpts);
                 return false;
