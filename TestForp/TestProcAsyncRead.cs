@@ -20,7 +20,7 @@ namespace TestForp
         {
             StringBuilder sb = new StringBuilder();
 
-            Task cmddir = Spi.ProcessRedirectAsync.Start(@"c:\windows\system32\cmd.exe /c dir",
+            Task cmddir = Spi.ProcessRedirectAsync.Run(@"c:\windows\system32\cmd.exe /c dir",
                 onProcessCreated: null,
                 onProcessOutput: (KINDOFOUTPUT kind, string line) =>
                 {
