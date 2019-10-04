@@ -10,7 +10,6 @@ using System.ComponentModel;
 using System.Security;
 
 using forp;
-using Microsoft.Win32.SafeHandles;
 
 namespace Spi
 {
@@ -18,6 +17,13 @@ namespace Spi
     {
         STDOUT,
         STDERR
+    }
+    public class ProcessStats
+    {
+        public uint ExitCode;
+        public TimeSpan KernelTime;
+        public TimeSpan UserTime;
+        public TimeSpan TotalTime;
     }
     public class ProcessRedirectAsync
     {
@@ -36,7 +42,7 @@ namespace Spi
                 g_currProcId = Process.GetCurrentProcess().Id;
             }
         }
-        public static async Task<uint> Start(string commandline, OnProcessOutput onProcessOutput, OnProcessCreated onProcessCreated)
+        public static async Task<ProcessStats> Run(string commandline, OnProcessOutput onProcessOutput, OnProcessCreated onProcessCreated)
         {
             var pi = new PROCESS_INFORMATION();
             try
@@ -58,20 +64,20 @@ namespace Spi
                     si.cb = (uint)Marshal.SizeOf<STARTUPINFO>();
                     si.dwFlags = STARTF_USESTDHANDLES;
                     si.hStdOutput = writerOut.SafePipeHandle.DangerousGetHandle();
-                    si.hStdError  = writerErr.SafePipeHandle.DangerousGetHandle();
+                    si.hStdError = writerErr.SafePipeHandle.DangerousGetHandle();
                     si.hStdInput = GetStdHandle(STD_INPUT_HANDLE);
 
                     if (!CreateProcessW(
-                        lpApplicationName:      null,
-                        lpCommandLine:          new StringBuilder(commandline),
-                        lpProcessAttributes:    IntPtr.Zero,
-                        lpThreadAttributes:     IntPtr.Zero,
-                        bInheritHandles:        true,
-                        dwCreationFlags:        IDLE_PRIORITY_CLASS,
-                        lpEnvironment:          IntPtr.Zero,
-                        lpCurrentDirectory:     null,
-                        lpStartupInfo:          ref si,
-                        lpProcessInformation:   out pi))
+                        lpApplicationName: null,
+                        lpCommandLine: new StringBuilder(commandline),
+                        lpProcessAttributes: IntPtr.Zero,
+                        lpThreadAttributes: IntPtr.Zero,
+                        bInheritHandles: true,
+                        dwCreationFlags: IDLE_PRIORITY_CLASS,
+                        lpEnvironment: IntPtr.Zero,
+                        lpCurrentDirectory: null,
+                        lpStartupInfo: ref si,
+                        lpProcessInformation: out pi))
                     {
                         var wex = new Win32Exception();
                         log.err($"CreateProcessW() lastErr={wex.NativeErrorCode}");
@@ -96,11 +102,11 @@ namespace Spi
                     await Task.WhenAll(stdout, stderr);
 
                     uint exitCode;
-                    if ( !GetExitCodeProcess(pi.hProcess, out exitCode))
+                    if (!GetExitCodeProcess(pi.hProcess, out exitCode))
                     {
                         const UInt32 WAIT_TIMEOUT = 0x00000102;
                         UInt32 rc;
-                        while ( (rc=WaitForSingleObject(pi.hProcess, 1000)) == WAIT_TIMEOUT)
+                        while ((rc = WaitForSingleObject(pi.hProcess, 1000)) == WAIT_TIMEOUT)
                         {
                             log.err($"waiting for process {pi.dwProcessId} to become signaled. WaitForSingleObject()");
                         }
@@ -111,7 +117,22 @@ namespace Spi
                         }
                     }
 
-                    return exitCode;
+                    System.Runtime.InteropServices.ComTypes.FILETIME creationTime;
+                    System.Runtime.InteropServices.ComTypes.FILETIME exitTime;
+                    System.Runtime.InteropServices.ComTypes.FILETIME userTime;
+                    System.Runtime.InteropServices.ComTypes.FILETIME kernelTime;
+                    if ( !GetProcessTimes(pi.hProcess, out creationTime, out exitTime, out kernelTime, out userTime))
+                    {
+                        log.win32err(new Win32Exception(), "GetProcessTimes");
+                    }
+
+                    return new ProcessStats()
+                    {
+                        ExitCode = exitCode,
+                        KernelTime = Misc.FiletimeToTimeSpan(kernelTime),
+                        UserTime   = Misc.FiletimeToTimeSpan(userTime),
+                        TotalTime  = Misc.FiletimeToTimeSpan(exitTime).Subtract(Misc.FiletimeToTimeSpan(creationTime))
+                    };
                 }
             }
             finally
@@ -175,11 +196,21 @@ namespace Spi
 
         [DllImport("kernel32.dll", SetLastError = true)]
         static extern IntPtr GetStdHandle(int whichHandle);
+
         [DllImport("kernel32.dll", SetLastError = true)]
         [return: MarshalAs(UnmanagedType.Bool)]
         static extern bool GetExitCodeProcess(IntPtr hProcess, out uint lpExitCode);
+
         [DllImport("kernel32.dll", SetLastError = true)]
         static extern UInt32 WaitForSingleObject(IntPtr hHandle, UInt32 dwMilliseconds);
+    
+        [DllImport("kernel32.dll", SetLastError = true)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        static extern bool GetProcessTimes(IntPtr hProcess, 
+            out System.Runtime.InteropServices.ComTypes.FILETIME lpCreationTime, 
+            out System.Runtime.InteropServices.ComTypes.FILETIME lpExitTime, 
+            out System.Runtime.InteropServices.ComTypes.FILETIME lpKernelTime,
+            out System.Runtime.InteropServices.ComTypes.FILETIME lpUserTime);
         #endregion
     }
 

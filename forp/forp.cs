@@ -15,7 +15,9 @@ namespace forp
     class Stats
     {
         public long? AllItems;
-        public long TotalTicksProcesses = 0;
+        public long procTotalTime = 0;
+        public long procUserTime = 0;
+        public long procKernelTime = 0;
     }
     static class forp
     {
@@ -42,10 +44,11 @@ namespace forp
                     tasks: ProcessesToStart.Select(
                         async (procToRun) =>
                             {
-                                long procStart = DateTime.Now.Ticks;
-                                uint ExitCode = await RunOneProcess(procToRun.commandline, procToRun.prefix, writer, cancel, skipEmptyLines, runningProcIDs).ConfigureAwait(false);
-                                Interlocked.Add(ref stats.TotalTicksProcesses, (DateTime.Now.Ticks - procStart));
-                                exitcodeWriter.WriteLine($"{ExitCode}\t{procToRun.commandline}");
+                                ProcessStats procStats = await RunOneProcess(procToRun.commandline, procToRun.prefix, writer, cancel, skipEmptyLines, runningProcIDs).ConfigureAwait(false);
+                                exitcodeWriter.WriteLine($"{procStats.ExitCode}\t{procToRun.commandline}");
+                                Interlocked.Add(ref stats.procTotalTime, procStats.TotalTime.Ticks);
+                                Interlocked.Add(ref stats.procKernelTime, procStats.KernelTime.Ticks);
+                                Interlocked.Add(ref stats.procUserTime, procStats.UserTime.Ticks);
                             }),
                     MaxParallel: maxParallel,
                     cancel: cts.Token);
@@ -63,13 +66,13 @@ namespace forp
             }
             return stats;
         }
-        static async Task<uint> RunOneProcess(string commandline, string prefix, TextWriter writer, CancellationToken cancel, bool skipEmptyLines, ICollection<uint> procIDs)
+        static async Task<ProcessStats> RunOneProcess(string commandline, string prefix, TextWriter writer, CancellationToken cancel, bool skipEmptyLines, ICollection<uint> procIDs)
         {
             log.dbg("starting: [{0}]", commandline);
 
             uint? currProcID = null;
 
-            uint ExitCode = await ProcessRedirectAsync.Start(
+            ProcessStats procStats = await ProcessRedirectAsync.Run(
                 commandline, 
                 onProcessCreated: (uint procId) => 
                 {
@@ -102,14 +105,14 @@ namespace forp
                 {
                     procIDs.Remove(currProcID.Value);
                 }
-                log.dbg("process ended: ID: {0}, ExitCode: {1}", currProcID.Value, ExitCode);
+                log.dbg("process ended: ID: {0}, ExitCode: {1}", currProcID.Value, procStats.ExitCode);
             }
             else
             {
                 log.err("proc has no ID set. komisch...?");
             }
 
-            return ExitCode;
+            return procStats;
         }
         
         static void HandleKeys(CancellationTokenSource cancelSource, TextWriter outWriter, ICollection<uint> runningProcIDs)

@@ -47,5 +47,18 @@ namespace forp
             }
             doEvery.Invoke();
         }
+        /***
+         * Remarks
+         *   This is a convenience method with the same behavior as the TimeSpan.TimeSpan(Int64) constructor. 
+         *  A single tick represents one hundred nanoseconds or one ten-millionth of a second. 
+         *  There are 10,000 ticks in a millisecond.
+         */
+        public static TimeSpan FiletimeToTimeSpan(System.Runtime.InteropServices.ComTypes.FILETIME fileTime)
+        {
+            //NB! uint conversion must be done on both fields before ulong conversion
+            ulong hFT2 = unchecked((((ulong)(uint)fileTime.dwHighDateTime) << 32) | (uint)fileTime.dwLowDateTime);
+            return TimeSpan.FromTicks((long)hFT2);
+        }
+
     }
 }

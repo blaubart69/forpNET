@@ -1,7 +1,45 @@
+forp.exe -h
+
+usage: forp.exe [OPTIONS] -- {exe} [options mixed with %1, %2, ...]
+  + if no inputfile is given. read input from stdin
+  + each line from the input is parsed with CommandLineToArgv() to produce %1, %2, ...
+  generated files:
+    1, forp.out.txt ........ stdout and stderr from all executed processes
+    2, forp.ExitCode.txt ... exitcode of each executed process. {rc}TAB{commandline}
+
+Options:
+  -f, --file=VALUE            input file
+  -c, --cmd                   execute with [%ComSpec% /C]
+  -p, --parallel=VALUE        run max parallel processes (default: 16)
+  -1, --first                 run only for first line in inputfile
+  -n, --dryrun                dry run
+  -e, --skipempty             do not write empty lines to output. String.IsNullOrWhiteSpace()
+  -d, --debug                 debug output
+  -h, --help                  show help
+      --nostatus              do not print the status line
+      --noprefix              do not prefix every output line with %1
+
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 Samples:
 --------
 
-1) Take every directory in current dir (c:\temp) and pass it to forp.exe to execute a "dir" command for each directory.
+1) copy a file FROM many machines to a local dir.
+   local logfiles will get the name "{hostname}.txt"
+
+  inputfile: machines.txt. Contains one hostname per line.
+
+  C:\>forp -f machines.txt -c -- copy \\%1\c$\log\logfile.txt .\logs\%1.txt
+
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+2) find explorer.exe processes running on machines.
+
+  forp -f hostnames.txt tasklist /NH /S %1 /FI "imagename eq explorer.exe"
+  
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+3) Take every directory in current dir (c:\temp) and pass it to forp.exe to execute a "dir" command for each directory.
 
   C:\temp>dir /ad /b | forp -c dir %1
 
@@ -25,22 +63,3 @@ Samples:
 	2019-09-27 11:10:45 I C:\WINDOWS\system32\cmd.exe /c dir WAM_subst
    
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-   
-2) copy a file FROM many machines to a local dir.
-   local logfiles will get the name "{hostname}.txt"
-
-  inputfile: machines.txt. Contains one hostname per line.
-
-  C:\>forp -f machines.txt -c -- copy \\%1\c$\log\logfile.txt .\logs\%1.txt
-
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
-3) find explorer.exe processes running on machines.
-
-  forp -f hostnames.txt tasklist /NH /S %1 /FI "imagename eq explorer.exe"
-  
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
-
-
-
