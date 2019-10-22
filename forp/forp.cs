@@ -22,7 +22,7 @@ namespace forp
     static class forp
     {
         static Log log = Log.GetLogger();
-        public static Stats Run(IEnumerable<ProcCtx> ProcessesToStart, int maxParallel, bool skipEmptyLines, bool printStatusLine, Func<long> numberJobs)
+        public static Stats Run(IEnumerable<ProcCtx> ProcessesToStart, int maxParallel, bool skipEmptyLines, bool printStatusLine, bool writeStderr, Func<long> numberJobs)
         {
             ProcessRedirectAsync.Init();
             Stats stats = new Stats();
@@ -44,7 +44,7 @@ namespace forp
                     tasks: ProcessesToStart.Select(
                         async (procToRun) =>
                             {
-                                ProcessStats procStats = await RunOneProcess(procToRun.commandline, procToRun.prefix, writer, cancel, skipEmptyLines, runningProcIDs).ConfigureAwait(false);
+                                ProcessStats procStats = await RunOneProcess(procToRun.commandline, procToRun.prefix, writer, cancel, skipEmptyLines, writeStderr, runningProcIDs).ConfigureAwait(false);
                                 exitcodeWriter.WriteLine($"{procStats.ExitCode}\t{procToRun.commandline}");
                                 Interlocked.Add(ref stats.procTotalTime, procStats.TotalTime.Ticks);
                                 Interlocked.Add(ref stats.procKernelTime, procStats.KernelTime.Ticks);
@@ -66,7 +66,7 @@ namespace forp
             }
             return stats;
         }
-        static async Task<ProcessStats> RunOneProcess(string commandline, string prefix, TextWriter writer, CancellationToken cancel, bool skipEmptyLines, ICollection<uint> procIDs)
+        static async Task<ProcessStats> RunOneProcess(string commandline, string prefix, TextWriter writer, CancellationToken cancel, bool skipEmptyLines, bool writeStderr, ICollection<uint> procIDs)
         {
             log.dbg("starting: [{0}]", commandline);
 
@@ -84,6 +84,11 @@ namespace forp
                 },
                 onProcessOutput: (kind, line) =>
                 {
+                    if ( kind == KINDOFOUTPUT.STDERR && !writeStderr)
+                    {
+                        return;
+                    }
+
                     if ( skipEmptyLines && String.IsNullOrWhiteSpace(line) )
                     {
                         return;

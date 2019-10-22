@@ -14,6 +14,7 @@ namespace forp
         public bool printPrefix = true;
         public bool skipEmptyLines = false;
         public bool printStatusLine = true;
+        public bool writeStderr = true;
         public bool debug;
         public bool dryrun;
 
@@ -38,6 +39,7 @@ namespace forp
                 .Add('h',  "help", OPTTYPE.BOOL, "show help", o => showhelp = true)
                 .Add(null, "nostatus", OPTTYPE.BOOL, "do not print the status line", o => tmpOpts.printStatusLine = false)
                 .Add(null, "noprefix", OPTTYPE.BOOL, "do not prefix every output line with %1", o => tmpOpts.printPrefix = false)
+                .Add(null, "noerr", OPTTYPE.BOOL, "do not capture stderr. = 2>NUL for each process", o => tmpOpts.writeStderr = false)
                 .GetOpts();
 
             commandlineTemplate = Spi.BeeOpts.Parse(args, cmdOpts, (string unknownOpt) => Console.Error.WriteLine($"unknow option [{unknownOpt}]"));

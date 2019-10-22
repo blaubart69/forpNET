@@ -2,11 +2,8 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Text;
 using System.Threading;
-using System.Threading.Tasks;
 using Spi;
-using static forp.forp;
 
 namespace forp
 {
@@ -85,7 +82,7 @@ namespace forp
                 else
                 {
                     long start = DateTime.Now.Ticks;
-                    Stats stats = forp.Run(commandlines2Exec, opts.maxParallel, opts.skipEmptyLines, opts.printStatusLine, jobCount);
+                    Stats stats = forp.Run(commandlines2Exec, opts.maxParallel, opts.skipEmptyLines, opts.printStatusLine, opts.writeStderr, jobCount);
                     TimeSpan forpDuration = new TimeSpan(DateTime.Now.Ticks - start);
                     Console.Error.WriteLine(
                              "executed processes:"
