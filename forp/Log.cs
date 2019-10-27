@@ -141,24 +141,17 @@ namespace Spi
 
                 try
                 {
-                    TextWriter ConsoleWriter;
-
                     switch (level)
                     {
-                        default:
-                            ConsoleWriter = Console.Out;
-                            break;
                         case LEVEL.WARNING:
                             Console.ForegroundColor = ConsoleColor.Yellow;
-                            ConsoleWriter = Console.Out;
                             break;
                         case LEVEL.ERROR:
                             Console.ForegroundColor = ConsoleColor.Red;
-                            ConsoleWriter = Console.Error;
                             break;
                     }
 
-                    ConsoleWriter.WriteLine(line);
+                    Console.Error.WriteLine(line);
 
                 }
                 catch (Exception Lex)
