@@ -78,7 +78,7 @@ namespace forp
                 {
                     foreach (var p in commandlines2Exec)
                     {
-                        log.inf($"{p.commandline}");
+                        Console.Out.WriteLine(p.commandline);
                     }
                 }
                 else
