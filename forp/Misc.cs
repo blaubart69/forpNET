@@ -59,6 +59,26 @@ namespace forp
             ulong hFT2 = unchecked((((ulong)(uint)fileTime.dwHighDateTime) << 32) | (uint)fileTime.dwLowDateTime);
             return TimeSpan.FromTicks((long)hFT2);
         }
+        public static bool isPercentTokenNumber(string token)
+        {
+            if ( String.IsNullOrEmpty(token))
+            {
+                return false;
+            }
+            if ( ! token.StartsWith("%") )
+            {
+                return false;
+            }
+            if (token.Length == 1)
+            {
+                return false;
+            }
+            if ( ! int.TryParse(token.Substring(1), out int result) )
+            {
+                return false;
+            }
 
+            return true;
+        }
     }
 }

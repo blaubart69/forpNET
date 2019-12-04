@@ -38,9 +38,11 @@ namespace forp
             //
             // must be placed here. afterwards commandtemplate get's expanded
             //
-            bool appendAllInputTokens = commandTemplate.Count == 1;
+            bool appendAllInputTokens = 
+                    commandTemplate.Count == 0 
+                || (commandTemplate.Count == 1 && !Misc.isPercentTokenNumber(commandTemplate[0]));
 
-            ExpandCommand(opts, commandTemplate);
+            ExpandCommand(opts, ref commandTemplate);
             log.dbgKeyVal("CommandTemplate", String.Join(" ", commandTemplate));
 
             TextReader inputstream;
@@ -127,8 +129,13 @@ namespace forp
             }
         }
 
-        private static void ExpandCommand(Opts opts, List<string> commandTemplate)
+        private static void ExpandCommand(Opts opts, ref List<string> commandTemplate)
         {
+            if (commandTemplate == null || commandTemplate?.Count == 0)
+            {
+                return;
+            }
+
             if (opts.runCmdExe
                             || commandTemplate[0].EndsWith(".bat", StringComparison.OrdinalIgnoreCase)
                             || commandTemplate[0].EndsWith(".cmd", StringComparison.OrdinalIgnoreCase))
