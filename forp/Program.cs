@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text;
 using System.Threading;
 using Spi;
 
@@ -26,7 +27,7 @@ namespace forp
                 Log.SetLevel(Log.LEVEL.DEBUG);
             }
             Log log = Log.GetLogger();
-
+            PrintOptions(opts);
             ThreadPool.GetMaxThreads(out int maxwork, out int maxio);
             ThreadPool.GetMinThreads(out int minwork, out int minio);
             log.dbg("minWork: {0}, minIO: {1}, maxWork: {2}, maxIO: {3}", minwork, minio, maxwork, maxio);
@@ -64,7 +65,6 @@ namespace forp
 
             using (inputstream)
             {
-                
                 IEnumerable<ProcCtx> commandlines2Exec = ConstructCommandline(opts.printPrefix, commandTemplate, inputstream, appendAllInputTokens);
 
                 if (opts.firstOnly)
@@ -81,19 +81,50 @@ namespace forp
                 }
                 else
                 {
+                    GetOutErrStreams(opts.filenameStdout, opts.filenameStderr, out TextWriter outStream, out TextWriter errStream);
                     long start = DateTime.Now.Ticks;
-                    Stats stats = forp.Run(commandlines2Exec, opts.maxParallel, opts.skipEmptyLines, opts.printStatusLine, opts.writeStderr, jobCount);
-                    TimeSpan forpDuration = new TimeSpan(DateTime.Now.Ticks - start);
-                    Console.Error.WriteLine(
-                             "executed processes:"
-                        + $"\n  TotalTime:   {new TimeSpan(stats.procTotalTime)}"
-                        + $"\n  KernelTime:  {new TimeSpan(stats.procKernelTime)}"
-                        + $"\n  UserTime:    {new TimeSpan(stats.procUserTime)}"
-                        + $"\nforp duration: {forpDuration}");
+                    Stats stats = null;
+                    using (outStream)
+                    using (errStream)
+                    {
+                        
+                        stats = forp.Run(commandlines2Exec, outStream, errStream, opts.maxParallel, opts.skipEmptyLines, opts.quiet, opts.writeStderr, jobCount);
+                    }
+                    if (!opts.quiet)
+                    {
+                        TimeSpan forpDuration = new TimeSpan(DateTime.Now.Ticks - start);
+                        Console.Error.WriteLine(
+                                 "executed processes:"
+                            + $"\n  TotalTime:   {new TimeSpan(stats.procTotalTime)}"
+                            + $"\n  KernelTime:  {new TimeSpan(stats.procKernelTime)}"
+                            + $"\n  UserTime:    {new TimeSpan(stats.procUserTime)}"
+                            + $"\nforp duration: {forpDuration}");
+                    }
                 }
             }
 
             return 0;
+        }
+
+        private static void GetOutErrStreams(string filenameStdout, string filenameStderr, out TextWriter outStream, out TextWriter errStream)
+        {
+            if ( String.IsNullOrEmpty(filenameStdout) && String.IsNullOrEmpty(filenameStderr))
+            {
+                outStream = Console.Out;
+                errStream = outStream;
+            }
+            else
+            {
+                outStream = TextWriter.Synchronized(new StreamWriter(filenameStdout, append: false, encoding: Encoding.UTF8));
+                if ( String.IsNullOrEmpty(filenameStderr))
+                {
+                    errStream = outStream;
+                }
+                else
+                {
+                    errStream = TextWriter.Synchronized(new StreamWriter(filenameStderr, append: false, encoding: Encoding.UTF8));
+                }
+            }
         }
 
         private static void ExpandCommand(Opts opts, List<string> commandTemplate)
@@ -162,6 +193,12 @@ namespace forp
                 return token;
             }
         }
-        
+        static void PrintOptions(Opts opts)
+        {
+            Log log = Log.GetLogger();
+            log.dbgKeyVal("filename input",  opts.inputfilename);
+            log.dbgKeyVal("filename stdout", opts.filenameStdout);
+            log.dbgKeyVal("filename stderr", opts.filenameStderr);
+        }
     }
 }

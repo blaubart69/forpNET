@@ -22,7 +22,7 @@ namespace forp
     static class forp
     {
         static Log log = Log.GetLogger();
-        public static Stats Run(IEnumerable<ProcCtx> ProcessesToStart, int maxParallel, bool skipEmptyLines, bool printStatusLine, bool writeStderr, Func<long> numberJobs)
+        public static Stats Run(IEnumerable<ProcCtx> ProcessesToStart, TextWriter outStream, TextWriter errStream, int maxParallel, bool skipEmptyLines, bool quiet, bool writeStderr, Func<long> numberJobs)
         {
             ProcessRedirectAsync.Init();
             Stats stats = new Stats();
@@ -33,26 +33,31 @@ namespace forp
             ICollection<uint> runningProcIDs = new HashSet<uint>();
 
             using (CancellationTokenSource cts = new CancellationTokenSource())
-            using (TextWriter writer         = TextWriter.Synchronized(new StreamWriter(@".\forp.out.txt",      append: false, encoding: Encoding.UTF8)))
             using (TextWriter exitcodeWriter = TextWriter.Synchronized(new StreamWriter(@".\forp.ExitCode.txt", append: false, encoding: Encoding.UTF8)))
             {
                 log.dbg($"starting with maxParallel: {maxParallel}");
                 var cancel = cts.Token;
-                Task.Run(() => HandleKeys(cts, writer, runningProcIDs));
+                if (!quiet)
+                {
+                    Console.Error.WriteLine("press 'q' to quit. 'h' for more keys.");
+                }
+                Task.Run(() => HandleKeys(cts, outStream, errStream, runningProcIDs));
+                
                 var procs = new MaxTasks();
                 var procsTask = procs.Start(
                     tasks: ProcessesToStart.Select(
                         async (procToRun) =>
                             {
-                                ProcessStats procStats = await RunOneProcess(procToRun.commandline, procToRun.prefix, writer, cancel, skipEmptyLines, writeStderr, runningProcIDs).ConfigureAwait(false);
+                                ProcessStats procStats = await RunOneProcess(procToRun.commandline, procToRun.prefix, outStream, errStream, cancel, skipEmptyLines, writeStderr, runningProcIDs).ConfigureAwait(false);
                                 exitcodeWriter.WriteLine($"{procStats.ExitCode}\t{procToRun.commandline}");
-                                Interlocked.Add(ref stats.procTotalTime, procStats.TotalTime.Ticks);
+                                Interlocked.Add(ref stats.procTotalTime,  procStats.TotalTime.Ticks);
                                 Interlocked.Add(ref stats.procKernelTime, procStats.KernelTime.Ticks);
-                                Interlocked.Add(ref stats.procUserTime, procStats.UserTime.Ticks);
+                                Interlocked.Add(ref stats.procUserTime,   procStats.UserTime.Ticks);
                             }),
                     MaxParallel: maxParallel,
                     cancel: cts.Token);
-                if (printStatusLine)
+
+                if (!quiet)
                 {
                     var status = new StatusLineWriter();
                     var currProcess = Process.GetCurrentProcess();
@@ -66,7 +71,7 @@ namespace forp
             }
             return stats;
         }
-        static async Task<ProcessStats> RunOneProcess(string commandline, string prefix, TextWriter writer, CancellationToken cancel, bool skipEmptyLines, bool writeStderr, ICollection<uint> procIDs)
+        static async Task<ProcessStats> RunOneProcess(string commandline, string prefix, TextWriter outWriter, TextWriter errWriter,  CancellationToken cancel, bool skipEmptyLines, bool writeStderr, ICollection<uint> procIDs)
         {
             log.dbg("starting: [{0}]", commandline);
 
@@ -94,6 +99,8 @@ namespace forp
                         return;
                     }
 
+                    TextWriter writer = kind == KINDOFOUTPUT.STDOUT ? outWriter : errWriter;
+
                     if (String.IsNullOrEmpty(prefix))
                     {
                         writer.WriteLine(line);
@@ -120,9 +127,9 @@ namespace forp
             return procStats;
         }
         
-        static void HandleKeys(CancellationTokenSource cancelSource, TextWriter outWriter, ICollection<uint> runningProcIDs)
+        static void HandleKeys(CancellationTokenSource cancelSource, TextWriter outStream, TextWriter errStream, ICollection<uint> runningProcIDs)
         {
-            Console.WriteLine("press 'q' to quit. 'h' for more keys.");
+            
             while (!cancelSource.IsCancellationRequested)
             {
                 var key = Console.ReadKey(intercept: true);
@@ -132,7 +139,8 @@ namespace forp
                         cancelSource.Cancel(); 
                         break;
                     case 'f': 
-                        outWriter.Flush(); 
+                        outStream.Flush();
+                        errStream.Flush();
                         break;
                     case 'p':
                         PrintProcessInfo(runningProcIDs);
@@ -148,7 +156,7 @@ namespace forp
             Console.Error.WriteLine(
                   "\npress ..."
                 + "\n  'q' to quit"
-                + "\n  'f' to flush forp.out.txt"
+                + "\n  'f' to flush out/err files"
                 + "\n  'p' to show running procIDs");
         }
         private static void PrintProcessInfo(ICollection<uint> runningProcIDs)
