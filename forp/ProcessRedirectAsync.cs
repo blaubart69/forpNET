@@ -61,7 +61,8 @@ namespace Spi
                     const uint IDLE_PRIORITY_CLASS = 0x00000040;
 
                     var si = new STARTUPINFO();
-                    si.cb = (uint)Marshal.SizeOf<STARTUPINFO>();
+                    //si.cb = (uint)Marshal.SizeOf<STARTUPINFO>();
+                    si.cb = (uint)Marshal.SizeOf(typeof(STARTUPINFO));
                     si.dwFlags = STARTF_USESTDHANDLES;
                     si.hStdOutput = writerOut.SafePipeHandle.DangerousGetHandle();
                     si.hStdError = writerErr.SafePipeHandle.DangerousGetHandle();
