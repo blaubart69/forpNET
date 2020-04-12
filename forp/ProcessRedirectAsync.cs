@@ -55,38 +55,7 @@ namespace Spi
                 using (readerErr)
                 using (writerErr)
                 {
-                    const int STARTF_USESTDHANDLES = 0x00000100;
-                    const int STD_INPUT_HANDLE = -10;
-                    //const int STD_ERROR_HANDLE = -12;
-                    const uint IDLE_PRIORITY_CLASS = 0x00000040;
-
-                    var si = new STARTUPINFO();
-                    si.cb = (uint)Marshal.SizeOf<STARTUPINFO>();
-                    si.dwFlags = STARTF_USESTDHANDLES;
-                    si.hStdOutput = writerOut.SafePipeHandle.DangerousGetHandle();
-                    si.hStdError = writerErr.SafePipeHandle.DangerousGetHandle();
-                    si.hStdInput = GetStdHandle(STD_INPUT_HANDLE);
-
-                    if (!CreateProcessW(
-                        lpApplicationName: null,
-                        lpCommandLine: new StringBuilder(commandline),
-                        lpProcessAttributes: IntPtr.Zero,
-                        lpThreadAttributes: IntPtr.Zero,
-                        bInheritHandles: true,
-                        dwCreationFlags: IDLE_PRIORITY_CLASS,
-                        lpEnvironment: IntPtr.Zero,
-                        lpCurrentDirectory: null,
-                        lpStartupInfo: ref si,
-                        lpProcessInformation: out pi))
-                    {
-                        var wex = new Win32Exception();
-                        log.err($"CreateProcessW() lastErr={wex.NativeErrorCode}");
-                        throw wex;
-                    }
-                    if (!pi.hThread.Equals(IntPtr.Zero))
-                    {
-                        CloseHandle(pi.hThread);
-                    }
+                    pi = CreateProcess(commandline, writerOut, writerErr);
                     onProcessCreated?.Invoke(pi.dwProcessId);
                     //
                     // 2019-09-22 Spindi himself
@@ -100,39 +69,8 @@ namespace Spi
                     Task stderr = Misc.ReadLinesAsync(new StreamReader(readerErr), (line) => onProcessOutput(KINDOFOUTPUT.STDERR, line));
 
                     await Task.WhenAll(stdout, stderr);
-
-                    uint exitCode;
-                    if (!GetExitCodeProcess(pi.hProcess, out exitCode))
-                    {
-                        const UInt32 WAIT_TIMEOUT = 0x00000102;
-                        UInt32 rc;
-                        while ((rc = WaitForSingleObject(pi.hProcess, 1000)) == WAIT_TIMEOUT)
-                        {
-                            log.err($"waiting for process {pi.dwProcessId} to become signaled. WaitForSingleObject()");
-                        }
-                        if (!GetExitCodeProcess(pi.hProcess, out exitCode))
-                        {
-                            var lasterr = new Win32Exception();
-                            throw new Exception($"still no ExitCode after WaitForSingleObject() on process handle. GetExitCodeProcess() returned: {lasterr.NativeErrorCode}");
-                        }
-                    }
-
-                    System.Runtime.InteropServices.ComTypes.FILETIME creationTime;
-                    System.Runtime.InteropServices.ComTypes.FILETIME exitTime;
-                    System.Runtime.InteropServices.ComTypes.FILETIME userTime;
-                    System.Runtime.InteropServices.ComTypes.FILETIME kernelTime;
-                    if ( !GetProcessTimes(pi.hProcess, out creationTime, out exitTime, out kernelTime, out userTime))
-                    {
-                        log.win32err(new Win32Exception(), "GetProcessTimes");
-                    }
-
-                    return new ProcessStats()
-                    {
-                        ExitCode = exitCode,
-                        KernelTime = Misc.FiletimeToTimeSpan(kernelTime),
-                        UserTime   = Misc.FiletimeToTimeSpan(userTime),
-                        TotalTime  = Misc.FiletimeToTimeSpan(exitTime).Subtract(Misc.FiletimeToTimeSpan(creationTime))
-                    };
+                    uint exitCode = GetExitCode(pi);
+                    return CreateProcessStats(pi, exitCode);
                 }
             }
             finally
@@ -143,6 +81,87 @@ namespace Spi
                 }
             }
         }
+
+        private static uint GetExitCode(PROCESS_INFORMATION pi)
+        {
+            uint exitCode;
+            if (!GetExitCodeProcess(pi.hProcess, out exitCode))
+            {
+                const UInt32 WAIT_TIMEOUT = 0x00000102;
+                UInt32 rc;
+                while ((rc = WaitForSingleObject(pi.hProcess, 1000)) == WAIT_TIMEOUT)
+                {
+                    log.err($"waiting for process {pi.dwProcessId} to become signaled. WaitForSingleObject()");
+                }
+                if (!GetExitCodeProcess(pi.hProcess, out exitCode))
+                {
+                    var lasterr = new Win32Exception();
+                    throw new Exception($"still no ExitCode after WaitForSingleObject() on process handle. GetExitCodeProcess() returned: {lasterr.NativeErrorCode}");
+                }
+            }
+
+            return exitCode;
+        }
+
+        private static ProcessStats CreateProcessStats(PROCESS_INFORMATION pi, uint exitCode)
+        {
+            System.Runtime.InteropServices.ComTypes.FILETIME creationTime;
+            System.Runtime.InteropServices.ComTypes.FILETIME exitTime;
+            System.Runtime.InteropServices.ComTypes.FILETIME userTime;
+            System.Runtime.InteropServices.ComTypes.FILETIME kernelTime;
+            if (!GetProcessTimes(pi.hProcess, out creationTime, out exitTime, out kernelTime, out userTime))
+            {
+                log.win32err(new Win32Exception(), "GetProcessTimes");
+            }
+
+            return new ProcessStats()
+            {
+                ExitCode = exitCode,
+                KernelTime = Misc.FiletimeToTimeSpan(kernelTime),
+                UserTime = Misc.FiletimeToTimeSpan(userTime),
+                TotalTime = Misc.FiletimeToTimeSpan(exitTime).Subtract(Misc.FiletimeToTimeSpan(creationTime))
+            };
+        }
+
+        private static PROCESS_INFORMATION CreateProcess(string commandline, NamedPipeClientStream writerOut, NamedPipeClientStream writerErr)
+        {
+            PROCESS_INFORMATION pi;
+            const int STARTF_USESTDHANDLES = 0x00000100;
+            const int STD_INPUT_HANDLE = -10;
+            //const int STD_ERROR_HANDLE = -12;
+            const uint IDLE_PRIORITY_CLASS = 0x00000040;
+
+            var si = new STARTUPINFO();
+            si.cb = (uint)Marshal.SizeOf<STARTUPINFO>();
+            si.dwFlags = STARTF_USESTDHANDLES;
+            si.hStdOutput = writerOut.SafePipeHandle.DangerousGetHandle();
+            si.hStdError = writerErr.SafePipeHandle.DangerousGetHandle();
+            si.hStdInput = GetStdHandle(STD_INPUT_HANDLE);
+
+            if (!CreateProcessW(
+                lpApplicationName: null,
+                lpCommandLine: new StringBuilder(commandline),
+                lpProcessAttributes: IntPtr.Zero,
+                lpThreadAttributes: IntPtr.Zero,
+                bInheritHandles: true,
+                dwCreationFlags: IDLE_PRIORITY_CLASS,
+                lpEnvironment: IntPtr.Zero,
+                lpCurrentDirectory: null,
+                lpStartupInfo: ref si,
+                lpProcessInformation: out pi))
+            {
+                var wex = new Win32Exception();
+                log.err($"CreateProcessW() lastErr={wex.NativeErrorCode}");
+                throw wex;
+            }
+            if (!pi.hThread.Equals(IntPtr.Zero))
+            {
+                CloseHandle(pi.hThread);
+            }
+
+            return pi;
+        }
+
         private static void CreatePipeAsyncReadSyncWrite(
             out NamedPipeServerStream ReadPipe,
             out NamedPipeClientStream WritePipe)
